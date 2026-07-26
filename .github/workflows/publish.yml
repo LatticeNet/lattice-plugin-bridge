@@ -1,0 +1,48 @@
+# Publishing is tag-triggered: pushing a `v*` tag IS the release act, and tag pushes
+# are operator-only (Olympus rules/03). The workflow publishes to GitHub Packages with
+# the ephemeral run token — no long-lived credential exists anywhere.
+#
+# Dist-tag law mirrors rules/01 §8.5: prerelease versions (-alpha/-beta/-rc) publish
+# under the `alpha` dist-tag and must never become `latest`; a plain vX.Y.Z publishes
+# as `latest` only because pushing a stable tag is itself an explicit operator release
+# decision.
+name: publish
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://npm.pkg.github.com
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Refuse tag/package version mismatch
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "tag v$TAG does not match package.json version $PKG" >&2
+            exit 1
+          fi
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          case "$GITHUB_REF_NAME" in
+            *-alpha.*|*-beta.*|*-rc.*) npm publish --tag alpha ;;
+            *) npm publish ;;
+          esac
