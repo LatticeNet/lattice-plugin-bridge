@@ -1,0 +1,28 @@
+{
+  "name": "@latticenet/plugin-bridge",
+  "version": "0.1.0-alpha.1",
+  "description": "The one Lattice plugin-UI bridge client: nonce handshake, exact-origin pinning, call transport, typed errors. Replaces the per-plugin bridge.ts copies.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
