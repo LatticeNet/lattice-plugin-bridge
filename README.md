@@ -69,6 +69,13 @@ bridge.resize(document.documentElement.scrollHeight);
 · `BridgeTimeoutError` (per-call timeout, default 15 s) · `BridgeDisposedError`
 (host disposed the frame; also thrown by post-dispose `call()`).
 
+## Theme
+
+`bridge.theme` exposes the last host-reported theme (or `null` before init);
+`bridge.subscribeTheme(listener)` notifies on init and every `lattice.host.theme`
+update and returns the unsubscribe. `bridge.dispose(reason?)` accepts a custom
+reason string.
+
 ## Migrating a plugin UI off its local copy
 
 1. Add the dependency pinned to an exact version (see Releases below), delete

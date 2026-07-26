@@ -181,8 +181,7 @@ describe("calls", () => {
 });
 
 describe("theme application", () => {
-  it("applies only allowlisted tokens", async () => {
-    const properties = new Map<string, string>();
+  it("applies only allowlisted tokens", async () => {    const properties = new Map<string, string>();
     const dataset: Record<string, string> = {};
     const fakeDocument = {
       documentElement: {
@@ -214,5 +213,38 @@ describe("theme application", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("theme state and subscription", () => {
+  it("exposes theme after init, notifies subscribers on host theme updates, and honors unsubscribe", async () => {
+    const { dispatch, make } = harness();
+    const client = make();
+    expect(client.theme).toBeNull();
+    const seen: string[] = [];
+    const unsubscribe = client.subscribeTheme((theme) => seen.push(String(theme.colorScheme)));
+    dispatch(initFor(client.nonce, { colorScheme: "dark" }));
+    await client.init;
+    expect(client.theme?.colorScheme).toBe("dark");
+    expect(seen).toEqual(["dark"]);
+    dispatch({ type: "lattice.host.theme", nonce: client.nonce, colorScheme: "light", designTokens: {} });
+    expect(seen).toEqual(["dark", "light"]);
+    unsubscribe();
+    dispatch({ type: "lattice.host.theme", nonce: client.nonce, colorScheme: "dark", designTokens: {} });
+    expect(seen).toEqual(["dark", "light"]);
+    client.dispose();
+  });
+
+  it("carries a custom dispose reason and keeps the default message otherwise", async () => {
+    const { make } = harness();
+    const client = make();
+    const pending = client.call("svc", "read", null);
+    client.dispose("ui unmounted");
+    await expect(pending.promise).rejects.toThrow("ui unmounted");
+
+    const second = make();
+    const pendingSecond = second.call("svc", "read", null);
+    second.dispose();
+    await expect(pendingSecond.promise).rejects.toThrow("Plugin host disconnected");
   });
 });
