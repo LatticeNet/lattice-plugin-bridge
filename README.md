@@ -65,7 +65,7 @@ bridge.resize(document.documentElement.scrollHeight);
 ## Typed errors
 
 `BridgeError` → `BridgeHandshakeError` (channel invalid) ·
-`BridgeRemoteError` (host answered an error) · `BridgeCancelledError` (cancel())
+`BridgeRemoteError` (host answered an error; carries the wire `code` when supplied) · `BridgeCancelledError` (cancel())
 · `BridgeTimeoutError` (per-call timeout, default 15 s) · `BridgeDisposedError`
 (host disposed the frame; also thrown by post-dispose `call()`).
 

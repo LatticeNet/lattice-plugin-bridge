@@ -144,9 +144,11 @@ describe("calls", () => {
 
     const failed = client.call("svc", "read", null);
     const failedCall = posted.at(-1)?.message as { id: string };
-    dispatch({ type: "lattice.host.error", nonce: client.nonce, id: failedCall.id, message: "Forbidden" });
+    dispatch({ type: "lattice.host.error", nonce: client.nonce, id: failedCall.id, code: "denied", message: "Forbidden" });
     await expect(failed.promise).rejects.toBeInstanceOf(BridgeRemoteError);
     await expect(failed.promise).rejects.toThrow("Forbidden");
+    const remoteError = await failed.promise.catch((cause: unknown) => cause);
+    expect((remoteError as BridgeRemoteError).code).toBe("denied");
 
     const cancelled = client.call("svc", "read", null);
     cancelled.cancel();

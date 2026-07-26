@@ -59,8 +59,16 @@ export class BridgeError extends Error {
   }
 }
 
-/** The host answered a call with `lattice.host.error`. */
-export class BridgeRemoteError extends BridgeError {}
+/** The host answered a call with `lattice.host.error`. Carries the wire's
+ *  error code (e.g. "denied") when the host supplied one. */
+export class BridgeRemoteError extends BridgeError {
+  readonly code?: string;
+
+  constructor(message: string, code?: string) {
+    super(message);
+    this.code = code;
+  }
+}
 /** A call was cancelled via the handle's cancel(). */
 export class BridgeCancelledError extends BridgeError {}
 /** A call exceeded its timeout; a cancel was posted to the host. */
@@ -194,9 +202,15 @@ export class BridgeClient {
         return;
       case "lattice.host.error":
         if (typeof message.id === "string") {
-          this.finish(message.id, new BridgeRemoteError(typeof message.message === "string" ? message.message : "Plugin call failed"));
+          this.finish(message.id, new BridgeRemoteError(
+            typeof message.message === "string" ? message.message : "Plugin call failed",
+            typeof message.code === "string" ? message.code : undefined,
+          ));
         } else {
-          this.failBridge(new BridgeRemoteError(typeof message.message === "string" ? message.message : "Plugin host rejected initialization"));
+          this.failBridge(new BridgeRemoteError(
+            typeof message.message === "string" ? message.message : "Plugin host rejected initialization",
+            typeof message.code === "string" ? message.code : undefined,
+          ));
         }
         return;
       case "lattice.host.dispose":
