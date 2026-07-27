@@ -13,4 +13,5 @@ export type {
   BridgeClientOptions,
   CallableInterface,
   HostInit,
+  HostTheme,
 } from "./bridge.js";

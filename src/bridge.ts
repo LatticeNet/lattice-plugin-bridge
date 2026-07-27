@@ -23,6 +23,14 @@ export interface CallableInterface {
   methods: string[];
 }
 
+/** Theme state as last reported by the host (init or lattice.host.theme).
+ *  colorScheme is the wire value verbatim ("light" | "dark" | "system" by
+ *  convention); designTokens are the unfiltered host tokens. */
+export interface HostTheme {
+  colorScheme?: string;
+  designTokens?: Record<string, unknown>;
+}
+
 export interface HostInit {
   version: string;
   pluginId: string;
@@ -114,6 +122,8 @@ export class BridgeClient {
   private readonly pending = new Map<string, Pending>();
   private initResolve!: (value: HostInit) => void;
   private initReject!: (reason: Error) => void;
+  private themeValue: HostTheme | null = null;
+  private readonly themeListeners = new Set<(theme: HostTheme) => void>();
   private sequence = 0;
   private disposed = false;
   private readyAttempts = 0;
@@ -169,14 +179,27 @@ export class BridgeClient {
     return { promise, cancel };
   }
 
+  /** Theme last reported by the host, or null before init. */
+  get theme(): HostTheme | null {
+    return this.themeValue;
+  }
+
+  /** Subscribe to host theme reports (init + lattice.host.theme). Returns the unsubscribe. */
+  subscribeTheme(listener: (theme: HostTheme) => void): () => void {
+    this.themeListeners.add(listener);
+    return () => {
+      this.themeListeners.delete(listener);
+    };
+  }
+
   resize(height: number): void {
     if (!this.disposed && Number.isFinite(height)) {
       this.post({ type: "lattice.plugin.resize", nonce: this.nonce, height: Math.ceil(height) });
     }
   }
 
-  dispose(): void {
-    this.failBridge(new BridgeDisposedError("Plugin host disconnected"));
+  dispose(reason?: string): void {
+    this.failBridge(new BridgeDisposedError(reason ?? "Plugin host disconnected"));
   }
 
   private onMessage(event: MessageEvent): void {
@@ -188,13 +211,13 @@ export class BridgeClient {
         const init = this.parseInit(message);
         if (!init) return;
         this.clearReadyTimer();
-        applyTheme(init.colorScheme, init.designTokens);
+        this.setTheme({ colorScheme: init.colorScheme, designTokens: init.designTokens });
         this.initResolve(init);
         return;
       }
       case "lattice.host.theme":
         if (typeof message.colorScheme === "string" && isStringRecord(message.designTokens)) {
-          applyTheme(message.colorScheme, message.designTokens);
+          this.setTheme({ colorScheme: message.colorScheme, designTokens: message.designTokens });
         }
         return;
       case "lattice.host.result":
@@ -244,6 +267,12 @@ export class BridgeClient {
   private clearReadyTimer(): void {
     if (this.readyTimer !== undefined) clearTimeout(this.readyTimer);
     this.readyTimer = undefined;
+  }
+
+  private setTheme(theme: { colorScheme: string; designTokens: Record<string, string> }): void {
+    this.themeValue = theme;
+    applyTheme(theme.colorScheme, theme.designTokens);
+    for (const listener of this.themeListeners) listener(theme);
   }
 
   private failBridge(error: Error): void {
