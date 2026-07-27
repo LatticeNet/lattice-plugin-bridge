@@ -78,19 +78,48 @@ reason string.
 
 ## Migrating a plugin UI off its local copy
 
-1. Add the dependency pinned to an exact version (see Releases below), delete
-   `ui/src/bridge.ts` (and fold any local extras into your own modules — the
-   package covers handshake/call/resize/theme/errors).
-2. Replace `new BridgeClient(window)` with the options form above; route
-   constants move from the local copy's hard-coded values into the options.
+1. Add the dependency pinned to an exact version (see Consuming below), delete
+   `ui/src/bridge.ts` and its test (the package's invariant suite replaces them).
+2. Replace `new BridgeClient(window)` with the options form above; the local
+   copy's hard-coded plugin id and routes become constructor arguments.
 3. Replace `import ... from "./bridge"` with `@latticenet/plugin-bridge`.
 4. Your UI's `test`/`typecheck`/`build`/`verify:build` must stay green.
 
+Known, honest migration costs (hit in production migrations, no surprises):
+
+- **Init payload typing**: the old `type`-alias init payload had an implicit
+  index signature; the package's `interface HostInit` does not. A consumer ref
+  typed `Record<string, unknown> | null` must retype to `HostInit | null`
+  (one line; template hit this).
+- **Test coverage moves**: deleting a UI's local `bridge.test.ts` can leave it
+  with no test files. If so, its test entry becomes
+  `vitest run --passWithNoTests` — the invariant coverage lives here, not
+  duplicated per consumer.
+
+## Consuming
+
+Registry: **GitHub Packages** (`npm.pkg.github.com`), scope `@latticenet`.
+GitHub Packages requires authentication for installs even of public packages.
+
+Consumer `ui/.npmrc`:
+
+```ini
+@latticenet:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+```
+
+- **In CI**: the npm steps need `env: GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}`,
+  and the package's Actions access list must include the consuming repo
+  (org-level grant, integrator's hands).
+- **Local dev**: any GitHub token with `read:packages`
+  (`gh auth refresh -s read:packages`).
+
 ## Releases
 
-Prerelease lane only: `0.x-alpha.N`, published by the operator/integrator from
-this repo's tags. Registry (GitHub Packages vs npmjs) is decided by the
-operator; consumers should pin exact versions regardless of registry.
+Prerelease lane only: `0.x-alpha.N`, published to GitHub Packages from this
+repo's tag-triggered CI (`publish.yml`, ephemeral run token; tag↔version
+mismatch refused; a prerelease never becomes registry `latest`). Consumers pin
+exact versions. First published version: `0.1.0-alpha.1`.
 
 The package has **zero runtime dependencies** and ships compiled ESM + types
 (`dist/`, built by `npm run build` / `prepublishOnly`).
@@ -104,5 +133,5 @@ npm run typecheck
 npm run build
 ```
 
-Repository CI (build/test on push) is the integrator's to wire; this package
-intentionally ships without a workflow in its first commit.
+CI (`ci.yml`: install/test/typecheck/build on push and PR) is wired by the
+integrator.
