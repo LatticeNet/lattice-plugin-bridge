@@ -214,6 +214,73 @@ describe("theme application", () => {
       vi.unstubAllGlobals();
     }
   });
+
+  it("carries the whole chassis, not just the palette", async () => {
+    // Every group the four plugins were re-deriving locally. One assertion per
+    // group, because the groups are what a plugin lays out with: a build that
+    // gets the colours and drops the radius scale is the bug this contract
+    // exists to close, and it is invisible on screen wherever the plugin's own
+    // fallback happens to agree with the console.
+    const properties = new Map<string, string>();
+    const dataset: Record<string, string> = {};
+    const fakeDocument = {
+      documentElement: {
+        style: {
+          colorScheme: "",
+          setProperty: (name: string, value: string) => { properties.set(name, value); },
+          getPropertyValue: (name: string) => properties.get(name) ?? "",
+        },
+        dataset,
+      },
+    };
+    vi.stubGlobal("document", fakeDocument);
+    try {
+      const { dispatch, make } = harness();
+      const client = make();
+      const contract: Record<string, string> = {
+        "--accent": "oklch(0.285 0.02 235)",
+        "--accent-foreground": "oklch(0.97 0.004 240)",
+        "--destructive-foreground": "oklch(0.16 0.02 15)",
+        "--success": "oklch(0.706 0.15 156)",
+        "--success-foreground": "oklch(0.16 0.02 156)",
+        "--warning": "oklch(0.8 0.16 80)",
+        "--warning-foreground": "oklch(0.2 0.04 75)",
+        "--info": "oklch(0.7 0.12 210)",
+        "--info-foreground": "oklch(0.16 0.02 210)",
+        "--radius-sm": "3px",
+        "--radius-md": "4px",
+        "--radius-lg": "6px",
+        "--radius-xl": "8px",
+        "--radius": "4px",
+        "--row-h": "40px",
+        "--row-h-compact": "32px",
+        "--space-1": "4px",
+        "--space-2": "8px",
+        "--space-3": "12px",
+        "--space-4": "16px",
+        "--space-5": "24px",
+        "--space-6": "32px",
+        "--space-7": "48px",
+        "--font-mono": "ui-monospace, monospace",
+        "--text-body": "14px",
+        "--text-mono": "12px",
+        "--shadow-overlay": "0 0 0 1px oklch(1 0 0 / 8%)",
+        "--shadow-raised": "0 1px 2px oklch(0 0 0 / 40%)",
+        "--duration-fast": "100ms",
+        "--duration-base": "200ms",
+        "--ease-out": "cubic-bezier(0.19, 1, 0.22, 1)",
+      };
+      dispatch(initFor(client.nonce, { colorScheme: "dark", designTokens: contract }));
+      await client.init;
+      for (const [name, value] of Object.entries(contract)) {
+        expect(properties.get(name), `${name} was dropped by the allowlist`).toBe(value);
+      }
+      expect(properties.size).toBe(Object.keys(contract).length);
+      client.dispose();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });
 
 describe("theme state and subscription", () => {

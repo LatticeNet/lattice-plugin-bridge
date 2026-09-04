@@ -1,5 +1,6 @@
 export {
   BridgeClient,
+  HOST_TOKEN_NAMES,
   canCall,
   BridgeError,
   BridgeRemoteError,
