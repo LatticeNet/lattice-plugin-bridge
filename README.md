@@ -35,10 +35,12 @@ cover each of them, and a consumer cannot weaken them through options.
 - `lattice.host.init` must declare version `"1"`, the consumer's own plugin id, and one
   of the routes that build answers for. A mismatch fails the handshake.
 - Host design tokens are filtered to a fixed allowlist before they are applied.
-  The allowlist is token contract v2: colours and status semantics, the four
-  radius steps, both row heights, the seven spacing steps, the mono stack and
-  two type sizes, two shadows, two durations and one curve, under the console's
-  own names. It is exported as `HOST_TOKEN_NAMES`. A plugin declares the same
+  The allowlist is token contract v2: colours, status semantics as both a fill
+  and an ink step (`--warning` is a fill; `--warning-text` is what a status
+  label is written in, because the light-scheme fill reads 2.5:1 as text), the
+  four radius steps, both row heights, the seven spacing steps, the mono stack
+  and two type sizes, two shadows, two durations and one curve, under the
+  console's own names. It is exported as `HOST_TOKEN_NAMES`. A plugin declares the same
   names on its own `:root` as fallbacks, for its dev harness and for a host
   older than this version; the host's values are written inline and win.
 

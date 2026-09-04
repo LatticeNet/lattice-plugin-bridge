@@ -125,6 +125,11 @@ export const HOST_TOKEN_NAMES: ReadonlySet<string> = new Set([
   // Status semantics: the colours that carry meaning in a control plane.
   "--success", "--success-foreground", "--warning", "--warning-foreground",
   "--info", "--info-foreground",
+  // The same three as ink. A status colour ships as a pair and the fill is
+  // sized for something to sit on it; written as text on the page instead, the
+  // light-scheme amber measures 2.5:1. A frame that labels a row "expired" in
+  // colour reads these, not the fills.
+  "--success-text", "--warning-text", "--info-text",
   // Corner radius: four steps plus the shadcn alias.
   "--radius-sm", "--radius-md", "--radius-lg", "--radius-xl", "--radius",
   // Row rhythm, one per density.
