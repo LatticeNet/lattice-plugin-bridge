@@ -100,10 +100,49 @@ type PluginMessage =
   | { type: "lattice.plugin.cancel"; nonce: string; id: string }
   | { type: "lattice.plugin.resize"; nonce: string; height: number };
 
-const TOKEN_NAMES = new Set([
+/**
+ * Token contract v2: the custom properties a Lattice host may write onto the
+ * plugin document.
+ *
+ * The first version of this list was eleven colours, and every plugin
+ * therefore re-derived its own radius scale, spacing scale, type sizes, status
+ * colours, shadows and motion. Four plugins ended up with four namespaces and
+ * three radius systems, none of them the console's. This list is the whole
+ * chassis instead, under the host's own names, so a plugin declares the same
+ * names on its `:root` as fallbacks (for its dev harness and for an older
+ * host) and the host's inline values win wherever a host sends them.
+ *
+ * Widening the list widens nothing else. The filter is by name; values are
+ * written with `style.setProperty`, which cannot execute or fetch anything,
+ * and a name outside this set is dropped whatever it carries.
+ */
+export const HOST_TOKEN_NAMES: ReadonlySet<string> = new Set([
+  // Surfaces, ink and state colour.
   "--background", "--foreground", "--card", "--card-foreground", "--muted",
-  "--muted-foreground", "--border", "--primary", "--primary-foreground",
-  "--destructive", "--ring",
+  "--muted-foreground", "--accent", "--accent-foreground", "--border",
+  "--primary", "--primary-foreground", "--destructive",
+  "--destructive-foreground", "--ring",
+  // Status semantics: the colours that carry meaning in a control plane.
+  "--success", "--success-foreground", "--warning", "--warning-foreground",
+  "--info", "--info-foreground",
+  // The same three as ink. A status colour ships as a pair and the fill is
+  // sized for something to sit on it; written as text on the page instead, the
+  // light-scheme amber measures 2.5:1. A frame that labels a row "expired" in
+  // colour reads these, not the fills.
+  "--success-text", "--warning-text", "--info-text",
+  // Corner radius: four steps plus the shadcn alias.
+  "--radius-sm", "--radius-md", "--radius-lg", "--radius-xl", "--radius",
+  // Row rhythm, one per density.
+  "--row-h", "--row-h-compact",
+  // Spacing scale.
+  "--space-1", "--space-2", "--space-3", "--space-4", "--space-5", "--space-6",
+  "--space-7",
+  // Type: the mono stack and the two sizes that do not inherit.
+  "--font-mono", "--text-body", "--text-mono",
+  // Elevation, for the surfaces that genuinely float.
+  "--shadow-overlay", "--shadow-raised",
+  // Motion: two durations and one curve.
+  "--duration-fast", "--duration-base", "--ease-out",
 ]);
 
 export class BridgeClient {
@@ -343,7 +382,7 @@ function applyTheme(colorScheme: string, tokens: Record<string, string>): void {
   document.documentElement.style.colorScheme = colorScheme === "dark" ? "dark" : "light";
   document.documentElement.dataset.theme = colorScheme === "dark" ? "dark" : "light";
   for (const [name, value] of Object.entries(tokens)) {
-    if (TOKEN_NAMES.has(name)) document.documentElement.style.setProperty(name, value);
+    if (HOST_TOKEN_NAMES.has(name)) document.documentElement.style.setProperty(name, value);
   }
 }
 
