@@ -181,10 +181,18 @@
 .pc-title-copy p { margin: var(--space-1) 0 0; max-width: var(--pc-measure); color: var(--muted-foreground); font-size: var(--pc-text-sm); line-height: 1.5; }
 .pc-plugin-badge { display: inline-flex; align-items: center; border: 1px solid var(--pc-info-border); border-radius: 999px; padding: 2px 7px; color: var(--info-text); background: var(--pc-info-soft); font-size: var(--pc-text-badge); font-weight: 650; text-transform: uppercase; white-space: nowrap; }
 .pc-header-actions { display: flex; align-items: center; gap: var(--space-2); }
-.pc-proof-line { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); margin: calc(-1 * var(--space-3)) 0 0; color: var(--muted-foreground); font-family: var(--font-mono); font-size: var(--pc-text-label); font-variant-numeric: tabular-nums; }
+.pc-proof-line { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); margin: 0; color: var(--muted-foreground); font-family: var(--font-mono); font-size: var(--pc-text-label); font-variant-numeric: tabular-nums; }
+/* The proof line sits inside the header's bottom padding, so the hairline is
+   drawn under it, not between the description and it. The `proof` slot puts
+   it there; a proof line written as the header's next sibling gets the same
+   drawing, with the hairline moved onto the line. */
+.pc-page-header[data-proof="true"] { padding-bottom: var(--space-3); }
+.pc-page-header > .pc-page-proof { grid-column: 1 / -1; min-width: 0; }
+.pc-workspace > .pc-page-header:has(+ .pc-proof-line) { padding-bottom: var(--space-3); border-bottom: 0; }
+.pc-workspace > .pc-page-header + .pc-proof-line { padding-bottom: var(--space-3); border-bottom: 1px solid var(--border); }
 
 /* ── 4.3 notice ─────────────────────────────────────────────────────────── */
-.pc-notice { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--pc-danger-border); border-radius: var(--radius-md); color: var(--pc-danger-text); background: var(--pc-danger-soft); font-size: var(--pc-text-sm); line-height: 1.5; }
+.pc-notice { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--pc-danger-border); border-radius: var(--radius-md); color: var(--pc-danger-ink); background: var(--pc-danger-soft); font-size: var(--pc-text-sm); line-height: 1.5; }
 .pc-notice > svg { flex: 0 0 auto; margin-top: 1px; }
 .pc-notice-body { min-width: 0; flex: 1; }
 .pc-notice-body strong { display: block; }
@@ -264,9 +272,13 @@
 .pc-table td small, .pc-cell-sub { display: block; max-width: 250px; overflow: hidden; margin-top: 2px; color: var(--muted-foreground); font-family: var(--font-mono); font-size: var(--text-mono); line-height: 16px; text-overflow: ellipsis; white-space: nowrap; }
 .pc-table td > strong, .pc-td-body > strong, .pc-name strong { display: block; overflow: hidden; font-size: var(--text-body); font-weight: 620; line-height: 20px; text-overflow: ellipsis; white-space: nowrap; }
 /* A sub-line outside the name column (a listen address, an outbound server,
-   an error) is capped tighter than the id line, so nine columns at 14px still
-   fit a 1440 frame. The title carries the full value. */
-.pc-table td:not(.pc-name) small { max-width: 200px; }
+   an error) takes no part in the column budget: `width: 0` keeps it out of
+   the column's intrinsic width, so the main value sets the column and the
+   sub-line truncates to whatever the column gets, with a floor so it stays
+   legible. Capped as an intrinsic width instead, three such columns pushed
+   the table past a 1440 frame and the sticky actions cell covered Service.
+   The title carries the full value. */
+.pc-table td:not(.pc-name) small { width: 0; min-width: max(100%, 126px); }
 .pc-table[data-density="compact"] td { height: var(--row-h-compact); }
 .pc-table[data-density="compact"] td small, .pc-table[data-density="compact"] .pc-cell-sub { display: none; }
 .pc-sort { display: inline-flex; align-items: center; gap: var(--space-1); border: 0; border-radius: var(--radius-sm); padding: 2px var(--space-1); margin: -2px calc(-1 * var(--space-1)); color: inherit; background: transparent; font: inherit; letter-spacing: inherit; text-transform: inherit; }
@@ -294,7 +306,9 @@ td.pc-name[data-level="1"] { padding-left: calc(var(--space-3) + 22px); }
 td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
 .pc-detail-row > td { height: auto; padding: 0 var(--space-4) var(--space-4) calc(var(--space-3) + 22px); background-color: var(--pc-open-surface); }
 .pc-narrow-status { display: none; }
-.pc-danger-text { color: var(--pc-danger-text); }
+/* A short error reason. It sits on the tinted row surfaces as often as on the
+   card, so it reads the ink; the table selector outranks `.pc-table td small`. */
+.pc-danger-text, .pc-table td .pc-danger-text { color: var(--pc-danger-ink); }
 
 /* Actions column, sticky at the right edge of the scroll wrap. */
 .pc-table td.pc-actions, .pc-table th.pc-actions { position: sticky; right: 0; z-index: 1; text-align: right; background: var(--card); box-shadow: -1px 0 0 var(--border); }
@@ -323,7 +337,9 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
 .pc-state-pill { display: inline-flex; align-items: center; gap: var(--space-1); border: 1px solid var(--border); border-radius: 999px; padding: 2px 7px; color: var(--muted-foreground); background: var(--card); font-size: var(--pc-text-badge); font-weight: 650; white-space: nowrap; }
 .pc-state-pill[data-tone="healthy"] { color: var(--success-text); border-color: var(--pc-ok-border); background: var(--pc-ok-soft); }
 .pc-state-pill[data-tone="warning"] { color: var(--warning-text); border-color: var(--pc-warn-border); background: var(--pc-warn-soft); }
-.pc-state-pill[data-tone="error"] { color: var(--pc-danger-text); border-color: var(--pc-danger-border); background: var(--pc-danger-soft); }
+/* Coloured ink on its own soft fill: the raw --destructive reads 4.06:1 on
+   --pc-danger-soft in light, so the pill takes the ink (5.84:1). */
+.pc-state-pill[data-tone="error"] { color: var(--pc-danger-ink); border-color: var(--pc-danger-border); background: var(--pc-danger-soft); }
 .pc-state-pill[data-tone="info"] { color: var(--info-text); border-color: var(--pc-info-border); background: var(--pc-info-soft); }
 .pc-state-pill + .pc-state-pill, .pc-state-pill + .pc-kind { margin-left: var(--space-1); }
 
@@ -377,11 +393,17 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
 .pc-workspace[data-batch="true"] { padding-bottom: calc(var(--space-7) + 46px + var(--space-4)); }
 
 /* ── 4.11 narrow frames ─────────────────────────────────────────────────── */
-@media (max-width: 720px) {
+/* Two tiles per row. Bounded below so its nth-child rules stay out of the
+   one-column form. The last row carries no rule under it: that is the last
+   tile, plus the one before it only when the two share a row. */
+@media (max-width: 720px) and (min-width: 621px) {
   .pc-stat-strip, .pc-skeleton-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pc-stat, .pc-skeleton-strip > div { border-bottom: 1px solid var(--border); }
   .pc-stat:nth-child(2n), .pc-skeleton-strip > div:nth-child(2n) { border-right: 0; }
-  .pc-stat:nth-last-child(-n + 2), .pc-skeleton-strip > div:nth-last-child(-n + 2) { border-bottom: 0; }
+  .pc-stat:last-child, .pc-stat:nth-last-child(2):nth-child(odd), .pc-skeleton-strip > div:last-child, .pc-skeleton-strip > div:nth-last-child(2):nth-child(odd) { border-bottom: 0; }
+}
+
+@media (max-width: 720px) {
   .pc-stat-value { white-space: normal; font-size: var(--pc-text-stat-narrow); }
   .pc-search { max-width: none; }
   .pc-table th.pc-name, .pc-table td.pc-name { position: sticky; left: 0; z-index: 1; min-width: 168px; max-width: 200px; background: var(--card); box-shadow: 1px 0 0 var(--border); }
@@ -430,7 +452,7 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
 .pc-table[data-stacked="true"] tr { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--pc-hairline); }
 .pc-table[data-stacked="true"] > tbody:last-child > tr:last-child { border-bottom: 0; }
 .pc-table[data-stacked="true"] td { display: block; height: auto; min-width: 0; max-width: none; padding: 0; border: 0; box-shadow: none; text-align: left; }
-.pc-table[data-stacked="true"] td small { max-width: none; }
+.pc-table[data-stacked="true"] td small { width: auto; min-width: 0; max-width: none; }
 .pc-table[data-stacked="true"] td.pc-name { position: static; order: 0; flex: 1 1 0; min-width: 0; padding: 0; background: transparent; }
 .pc-table[data-stacked="true"] td.pc-name small { max-width: none; }
 .pc-table[data-stacked="true"] tr::after { content: ""; order: 2; flex: 0 0 100%; height: 0; }

@@ -103,8 +103,8 @@
     <template #actions>
       <PcButton :busy="refreshing" @click="refresh"><template #icon><RefreshCw :size="15" /></template>Refresh</PcButton>
     </template>
+    <template #proof><PcProofLine :segments="['observed at 23:21:14', '25 nodes report', 'liveness: 138 running']" :refreshing="refreshing" /></template>
   </PcPageHeader>
-  <PcProofLine :segments="['observed at 23:21:14', '25 nodes report', 'liveness: 138 running']" :refreshing="refreshing" />
 
   <PcNotice v-if="notice" tone="warning" title="The topology below is the last good read, not the current one" dismissible @dismiss="notice = false">
     The reload at 23:24:02 failed: <code>lines.list</code> timed out after 15 s.

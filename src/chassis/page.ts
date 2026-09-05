@@ -16,7 +16,9 @@ export const PcWorkspace = defineComponent({
 
 /**
  * The page header (design 4.2): icon mark, title, plugin badge, one-line
- * description, and the right slot that holds the page-level Refresh.
+ * description, the right slot that holds the page-level Refresh, and the
+ * `proof` slot for the PcProofLine, which sits inside the header's bottom
+ * padding so the hairline is drawn under it.
  */
 export const PcPageHeader = defineComponent({
   name: "PcPageHeader",
@@ -29,7 +31,7 @@ export const PcPageHeader = defineComponent({
   },
   setup(props, { slots }) {
     return () =>
-      h("header", { class: "pc-page-header" }, [
+      h("header", { class: "pc-page-header", "data-proof": slots.proof ? "true" : undefined }, [
         h("div", { class: "pc-title-mark" }, slots.icon ? slots.icon() : props.icon ? h(props.icon, { size: 19, "aria-hidden": "true" }) : undefined),
         h("div", { class: "pc-title-copy" }, [
           h("div", { class: "pc-title-line" }, [
@@ -39,6 +41,7 @@ export const PcPageHeader = defineComponent({
           props.description || slots.description ? h("p", slots.description ? slots.description() : props.description) : undefined,
         ]),
         slots.actions ? h("div", { class: "pc-header-actions" }, slots.actions()) : undefined,
+        slots.proof ? h("div", { class: "pc-page-proof" }, slots.proof()) : undefined,
       ]);
   },
 });

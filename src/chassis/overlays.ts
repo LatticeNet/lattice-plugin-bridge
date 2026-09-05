@@ -21,16 +21,30 @@ interface DialogOptions {
 function useDialog(props: { open: boolean; returnFocusTo: HTMLElement | null }, emitClose: () => void) {
   const dialog = ref<HTMLElement | null>(null);
   useOverlayRegistration(() => props.open, emitClose);
+  // The element that held focus when the dialog opened. Focus goes back there
+  // on close unless the consumer names another target with returnFocusTo, so
+  // a keyboard user lands on the button they pressed, not on <body>.
+  let opener: HTMLElement | null = null;
+  const open = (): void => {
+    const active = document.activeElement;
+    opener = active instanceof HTMLElement && active !== document.body ? active : null;
+    dialog.value?.focus();
+  };
+  const close = (): void => {
+    const target = props.returnFocusTo ?? opener;
+    opener = null;
+    if (target?.isConnected) target.focus();
+  };
   // Post-flush, so the dialog element exists when it is focused; mounted,
   // for a dialog that is rendered open in the first place.
   onMounted(() => {
-    if (props.open) dialog.value?.focus();
+    if (props.open) open();
   });
   watch(
     () => props.open,
-    (open, was) => {
-      if (open) dialog.value?.focus();
-      else if (was) props.returnFocusTo?.focus();
+    (isOpen, was) => {
+      if (isOpen) open();
+      else if (was) close();
     },
     { flush: "post" },
   );
@@ -46,7 +60,7 @@ function dialogProps() {
     title: { type: String, required: true as const },
     description: { type: String, default: "" },
     closeLabel: { type: String, default: "Close" },
-    /** Focused again when the dialog closes. */
+    /** Focused again when the dialog closes; left null, focus returns to the element that had it when the dialog opened. */
     returnFocusTo: { type: Object as PropType<HTMLElement | null>, default: null },
   };
 }

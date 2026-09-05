@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { PcBatchBar, PcConfirmDialog, PcModal, PcSidePanel } from "./overlays";
 import { closeTopOverlay, overlayDepth, resetOverlayStack, useOverlayEscape } from "./overlayStack";
-import { PcNotice, PcPageHeader, PcStatCard, PcStatStrip } from "./page";
+import { PcNotice, PcPageHeader, PcProofLine, PcStatCard, PcStatStrip } from "./page";
 import { PcEmptyState, PcSkeleton } from "./states";
 import { useDocumentQueryState } from "./queryState";
 
@@ -71,6 +71,39 @@ describe("overlay stack", () => {
     wrapper.unmount();
   });
 
+  it.each([
+    ["PcModal", PcModal],
+    ["PcSidePanel", PcSidePanel],
+    ["PcConfirmDialog", PcConfirmDialog],
+  ])("%s returns focus to the element that opened it when returnFocusTo is not given", async (_, Component) => {
+    const opener = document.createElement("button");
+    document.body.appendChild(opener);
+    opener.focus();
+    const wrapper = mount(Component, { props: { open: false, title: "Plan" }, attachTo: document.body });
+    await wrapper.setProps({ open: true });
+    await nextTick();
+    expect(document.activeElement?.getAttribute("role")).toBe("dialog");
+    await wrapper.setProps({ open: false });
+    await nextTick();
+    expect(document.activeElement).toBe(opener);
+    wrapper.unmount();
+    opener.remove();
+  });
+
+  it("a dialog rendered open from the start still returns focus to what held it", async () => {
+    const opener = document.createElement("button");
+    document.body.appendChild(opener);
+    opener.focus();
+    const wrapper = mount(PcModal, { props: { open: true, title: "Plan" }, attachTo: document.body });
+    await nextTick();
+    expect(document.activeElement?.classList.contains("pc-modal")).toBe(true);
+    await wrapper.setProps({ open: false });
+    await nextTick();
+    expect(document.activeElement).toBe(opener);
+    wrapper.unmount();
+    opener.remove();
+  });
+
   it("a confirm dialog emits confirm and cancel from its footer", async () => {
     const events: string[] = [];
     const wrapper = mount(PcConfirmDialog, {
@@ -106,6 +139,19 @@ describe("page parts", () => {
     expect(wrapper.find(".pc-title-copy p").text()).toContain("Managed and discovered");
     expect(wrapper.find(".pc-header-actions button").text()).toBe("Refresh");
     expect(wrapper.find(".pc-title-mark").exists()).toBe(true);
+    expect(wrapper.attributes("data-proof")).toBeUndefined();
+  });
+
+  it("the proof slot renders the proof line inside the header, above its hairline", () => {
+    const wrapper = mount(PcPageHeader, {
+      props: { title: "Lines" },
+      slots: { proof: () => h(PcProofLine, { segments: ["observed at 23:21:14", "25 nodes report"], refreshing: true }) },
+    });
+    expect(wrapper.attributes("data-proof")).toBe("true");
+    const proof = wrapper.find("header.pc-page-header > .pc-page-proof > .pc-proof-line");
+    expect(proof.exists()).toBe(true);
+    expect(proof.findAll("span").map((span) => span.text())).toEqual(["observed at 23:21:14", "· 25 nodes report", "· refreshing"]);
+    expect(wrapper.element.lastElementChild?.classList.contains("pc-page-proof")).toBe(true);
   });
 
   it("a danger notice is an alert; the others are polite status", () => {
