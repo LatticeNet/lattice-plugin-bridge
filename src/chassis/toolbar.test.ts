@@ -53,7 +53,9 @@ describe("the lens strip in a narrow frame", () => {
     expect(narrowRule(".pc-lens-tab")).toMatch(/flex:\s*1 1 auto/);
   });
 
-  it("keeps every tab in the one tablist so ArrowLeft and ArrowRight still reach the wrapped row", async () => {
+  it("keeps all four tabs in the one tablist, so the arrow keys walk the strip whichever row a tab lands on", async () => {
+    // jsdom computes no layout: this proves the tablist model over four tabs,
+    // not the wrap itself. The wrapped row is measured in dev/harness-375.html.
     const wrapper = mount(NetGuardLens, { attachTo: document.body });
     try {
       const list = wrapper.find("[role='tablist']");
