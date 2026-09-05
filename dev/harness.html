@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Plugin chassis harness</title>
+  <!-- A dev-only page. Serve the package root (python -m http.server) after
+       `npm run build`; the page imports dist/ and the Vue browser build from
+       node_modules, so nothing here is bundled or published. -->
+  <link rel="stylesheet" href="../dist/chassis/chassis.css" />
+  <style>
+    html { color-scheme: light; }
+    html[data-theme="dark"] { color-scheme: dark; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--background);
+      color: var(--foreground);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", "PingFang SC", sans-serif;
+      font-synthesis: none;
+    }
+    .harness-icon { color: currentColor; }
+  </style>
+  <script type="importmap">
+    { "imports": { "vue": "../node_modules/vue/dist/vue.esm-browser.js" } }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module">
+    import { createApp, ref, computed, h } from "vue";
+    import * as chassis from "../dist/chassis/index.js";
+
+    const params = new URLSearchParams(location.search);
+    const theme = params.get("theme") ?? "dark";
+    document.documentElement.dataset.theme = theme;
+
+    const Icon = (paths) => ({
+      props: { size: { type: Number, default: 16 } },
+      setup: (props) => () => h("svg", { xmlns: "http://www.w3.org/2000/svg", width: props.size, height: props.size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, paths.map((d) => h("path", { d }))),
+    });
+    const Radar = Icon(["M19.07 4.93A10 10 0 0 0 6.99 3.34", "M4 6h.01", "M2.29 9.62A10 10 0 1 0 21.31 8.35", "M16.24 7.76A6 6 0 1 0 8.23 16.67", "M12 18h.01", "M17.99 11.66A6 6 0 0 1 15.77 16.67", "M12 12a2 2 0 1 0 4 0 2 2 0 0 0-4 0", "m13.41 10.59 5.66-5.66"]);
+    const RefreshCw = Icon(["M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8", "M21 3v5h-5", "M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16", "M8 16H3v5"]);
+    const Plus = Icon(["M5 12h14", "M12 5v14"]);
+    const Waypoints = Icon(["M12 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4", "M12 21a2 2 0 1 0 0-4 2 2 0 0 0 0 4", "M4.5 12.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4", "M19.5 12.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4", "m6.3 11.5 4.4-4.4", "m13.3 7.1 4.4 4.4", "m6.3 13.5 4.4 4.4", "m13.3 17.9 4.4-4.4"]);
+
+    const nodes = [
+      { id: "aaitr-att", name: "[cd]-Aaitr-ATT-VDS", lines: 1, relays: 0, exits: 1, service: "running" },
+      { id: "aaitr-frontier-nat", name: "[cd]-Aaitr-Frontier-NAT", lines: 1, relays: 0, exits: 1, service: "running" },
+      { id: "node_4ol55vwphys3rgdt", name: "[cd]-Akkocloud-UK-London-KVM", lines: 1, relays: 0, exits: 1, service: "running" },
+      { id: "dmit-eb-wee", name: "[cd]-DMIT-eb-wee", lines: 3, relays: 1, exits: 2, service: "running",
+        children: [
+          { hash: "1f3a9c2b7d", name: "vless-relay-1", type: "vless", role: "relay", port: 24443, host: "203.0.113.4", sni: "www.microsoft.com", users: 12, outbound: "out-dmit-1", server: "198.51.100.7", oport: 443, status: "ok", service: "running" },
+          { hash: "8b2e4f10aa", name: "vless-exit-1", type: "vless", role: "exit", port: 443, host: "203.0.113.4", sni: "www.microsoft.com", users: 41, outbound: "direct", status: "ok", service: "running" },
+          { hash: "c07d5e9912", name: "ss-exit-2", type: "shadowsocks", role: "exit", port: 8388, host: "203.0.113.4", sni: "", users: 3, outbound: "direct", status: "ok", service: "running" },
+        ] },
+      { id: "node_ob46mh4ltshdpkhc", name: "[cd]-DMIT-pro-malibu", lines: 2, relays: 0, exits: 2, service: "running" },
+      { id: "node_5cuasrdombvftahf", name: "[cd]-gomami-jpn-pulse-nano", lines: 2, relays: 0, exits: 2, service: "running" },
+      { id: "cd-hs-sh", name: "[cd]-huoshan-shanghai", lines: 1, relays: 0, exits: 1, service: "down" },
+      { id: "legend-sg", name: "[cd]-LegendVPS-SG-EVO", lines: 2, relays: 0, exits: 2, service: "running" },
+      { id: "node_nwnkg35v7dg5uxgq", name: "[cd]-mkcloud-hr-iplc", lines: 5, relays: 4, exits: 1, service: "running", bank: { type: "vless", count: 4, targets: 4, min: 24443, max: 24446 } },
+      { id: "dmit-1", name: "[Metix]-DMIT-1", lines: 13, relays: 12, exits: 1, service: "running", bank: { type: "vless", count: 12, targets: 7, min: 24443, max: 24454 },
+        children: [
+          { bank: true, name: "12 vless relays", sub: "ports 24443 to 24454", host: "203.0.113.9", sni: "www.microsoft.com", users: 58, targets: 7, status: "ok", service: "running",
+            lines: [
+              { hash: "3ac1b0e5f4", name: "vless-relay-01", type: "vless", role: "relay", port: 24443, host: "203.0.113.9", sni: "www.microsoft.com", users: 5, outbound: "out-aaitr-att", server: "192.0.2.14", oport: 443, status: "ok", service: "running" },
+              { hash: "77e0c2d9b1", name: "vless-relay-02", type: "vless", role: "relay", port: 24444, host: "203.0.113.9", sni: "www.microsoft.com", users: 4, outbound: "out-legend-sg", server: "192.0.2.21", oport: 443, status: "ok", service: "running" },
+            ] },
+          { hash: "e51f8a03cc", name: "vless-exit-1", type: "vless", role: "exit", port: 443, host: "203.0.113.9", sni: "www.microsoft.com", users: 22, outbound: "direct", status: "error", error: "tls handshake: certificate expired", service: "down" },
+        ] },
+    ];
+
+    const App = {
+      setup() {
+        const lens = ref(params.get("lens") ?? "fleet");
+        const search = ref("");
+        const refreshing = ref(false);
+        const notice = ref(params.get("notice") !== "0");
+        const groups = chassis.useExpandSet(params.getAll("expand"));
+        const banks = chassis.useExpandSet();
+        const modal = ref(false);
+        const confirm = ref(false);
+        const page = ref(1);
+        chassis.useOverlayEscape();
+        const visible = computed(() => {
+          const term = search.value.trim().toLowerCase();
+          if (!term) return nodes;
+          return nodes.filter((node) => node.name.toLowerCase().includes(term) || node.id.includes(term));
+        });
+        function summary(node) {
+          const parts = [`${node.lines} ${node.lines === 1 ? "line" : "lines"}`];
+          if (node.relays) parts.push(`${node.relays} relay`);
+          if (node.exits) parts.push(`${node.exits} exit`);
+          if (node.bank) parts.push(`bank of ${node.bank.count} ${node.bank.type} → ${node.bank.targets} nodes`);
+          return parts;
+        }
+        function refresh() { refreshing.value = true; setTimeout(() => (refreshing.value = false), 900); }
+        return { lens, search, refreshing, notice, groups, banks, modal, confirm, page, visible, summary, refresh, Radar, RefreshCw, Plus, Waypoints };
+      },
+      template: `
+<PcWorkspace>
+  <PcPageHeader title="Lines" badge="VPN Core plugin" description="Managed and discovered proxy endpoints across the fleet." :icon="Radar">
+    <template #actions>
+      <PcButton :busy="refreshing" @click="refresh"><template #icon><RefreshCw :size="15" /></template>Refresh</PcButton>
+    </template>
+    <template #proof><PcProofLine :segments="['observed at 23:21:14', '25 nodes report', 'liveness: 138 running']" :refreshing="refreshing" /></template>
+  </PcPageHeader>
+
+  <PcNotice v-if="notice" tone="warning" title="The topology below is the last good read, not the current one" dismissible @dismiss="notice = false">
+    The reload at 23:24:02 failed: <code>lines.list</code> timed out after 15 s.
+    <template #actions><PcButton compact @click="refresh">Try again</PcButton></template>
+  </PcNotice>
+
+  <PcStatStrip :count="5" label="Line summary">
+    <PcStatCard label="Lines" :value="138" note="none reporting a config error" />
+    <PcStatCard label="Lattice-managed" :value="0" tone="warning" note="138 discovered only" />
+    <PcStatCard label="Roles" value="101 relay · 36 exit" note="1 with no outbound" />
+    <PcStatCard label="Nodes" :value="25" note="0 of 25 carry a managed line" />
+    <PcStatCard label="Service" value="137 running · 1 down" tone="error" note="every line reported" />
+  </PcStatStrip>
+
+  <PcToolbar label="Lines toolbar">
+    <template #tabs>
+      <PcLensTabs v-model="lens" label="Lines lens">
+        <PcLensTab value="fleet" label="Fleet" />
+        <PcLensTab value="topology" label="Topology" />
+        <PcLensTab value="attention" label="Attention" :count="2" count-tone="warning" />
+      </PcLensTabs>
+    </template>
+    <template #search><PcSearchField v-model="search" label="Search lines" placeholder="Search node, line, endpoint, outbound or error" /></template>
+    <template v-if="search.trim()" #note>{{ visible.length }} of {{ 25 }} nodes match</template>
+    <template #secondary><PcButton @click="confirm = true">Remove stale</PcButton></template>
+    <template #primary><PcButton variant="primary" @click="modal = true"><template #icon><Plus :size="15" /></template>Roll out managed lines</PcButton></template>
+  </PcToolbar>
+
+  <PcPanel v-if="lens === 'fleet'" id="pc-panel-fleet" role="tabpanel" aria-labelledby="pc-tab-fleet">
+    <PcPanelHeader title="Fleet" description="Every node that reports an inbound, with its lines folded underneath. A bank is a set of relay lines of one protocol that all dial out.">
+      <PcCount value="25 nodes · 138 lines" />
+    </PcPanelHeader>
+    <PcTable v-if="visible.length" :min-width="1080" label="Fleet">
+      <template #head>
+        <PcTh name>Node / line</PcTh>
+        <PcTh>Role</PcTh>
+        <PcTh>Endpoint</PcTh>
+        <PcTh>Reality SNI</PcTh>
+        <PcTh numeric>Users</PcTh>
+        <PcTh>Outbound</PcTh>
+        <PcTh>Config</PcTh>
+        <PcTh>Service</PcTh>
+        <PcTh actions>Actions</PcTh>
+      </template>
+      <tbody v-for="node in visible" :key="node.id" :data-open="groups.isOpen(node.id)">
+        <PcGroupRow :expanded="groups.isOpen(node.id)">
+          <PcNameCell :name="node.name" :id="node.id" :expanded="groups.isOpen(node.id)" :controls="'node-' + node.id" @toggle="groups.toggle(node.id)">
+            <template #status>
+              <PcStateDot tone="healthy" label="ok" />
+              <PcStatePill :tone="node.service === 'down' ? 'error' : 'healthy'" :label="node.service" />
+            </template>
+          </PcNameCell>
+          <PcTd :colspan="5" stack="summary"><span class="pc-group-summary"><span v-for="(part, i) in summary(node)" :key="i">{{ i ? '· ' + part : part }}</span></span></PcTd>
+          <PcTd label="Config" stack="state"><PcStateDot tone="healthy" label="ok" title="checked 23:21:14" /></PcTd>
+          <PcTd label="Service" stack="state"><PcStatePill :tone="node.service === 'down' ? 'error' : 'healthy'" :label="node.service" title="checked 23:21:14" /></PcTd>
+          <PcActionsCell><PcButton compact :title="'Connections observed on ' + node.name"><template #icon><Waypoints :size="13" /></template>Evidence</PcButton></PcActionsCell>
+        </PcGroupRow>
+        <template v-if="groups.isOpen(node.id)">
+          <template v-for="(entry, index) in node.children || []" :key="entry.hash || entry.name">
+            <PcBankRow v-if="entry.bank" :id="index === 0 ? 'node-' + node.id : undefined" :expanded="banks.isOpen(node.id)">
+              <PcNameCell :name="entry.name" :sub="entry.sub" :level="1" :expanded="banks.isOpen(node.id)" @toggle="banks.toggle(node.id)" />
+              <PcTd label="Role" stack="state"><PcKindChip tone="info" label="bank" /></PcTd>
+              <PcTd label="Endpoint" mono>{{ entry.host }}<small>{{ entry.lines.length }} listeners, {{ entry.sub }}</small></PcTd>
+              <PcTd label="Reality SNI" mono>{{ entry.sni }}</PcTd>
+              <PcTd label="Users" numeric>{{ entry.users }}</PcTd>
+              <PcTd label="Outbound">→ {{ entry.targets }} nodes<small>aaitr-att, legend-sg, dmit-eb-wee, +4</small></PcTd>
+              <PcTd label="Config" stack="state"><PcStateDot tone="healthy" label="ok" /></PcTd>
+              <PcTd label="Service" stack="state"><PcStatePill tone="healthy" label="running" /></PcTd>
+              <PcActionsCell />
+            </PcBankRow>
+            <template v-else-if="entry.bank === undefined">
+              <PcRow :id="index === 0 ? 'node-' + node.id : undefined">
+                <PcNameCell :name="entry.name" :id="entry.type + ' / ' + entry.hash" :level="1">
+                  <template #status>
+                    <span class="pc-mono">:{{ entry.port }}</span>
+                    <PcStateDot :tone="entry.status === 'ok' ? 'healthy' : 'error'" :label="entry.status" />
+                    <PcStatePill :tone="entry.service === 'down' ? 'error' : 'healthy'" :label="entry.service" />
+                  </template>
+                </PcNameCell>
+                <PcTd label="Role" stack="state"><PcStatePill :tone="entry.role === 'orphan' ? 'error' : 'neutral'" :label="entry.role" /><PcKindChip v-if="entry.role === 'relay'" tone="info" label="lattice-managed" /></PcTd>
+                <PcTd label="Endpoint" mono :title="'public ' + entry.host + ':' + entry.port"><strong style="display:inline;font:inherit;font-weight:650">:{{ entry.port }}</strong> {{ entry.host }}<small>listen 0.0.0.0:{{ entry.port }}</small></PcTd>
+                <PcTd label="Reality SNI" mono :title="entry.sni">{{ entry.sni || '-' }}</PcTd>
+                <PcTd label="Users" numeric>{{ entry.users }}</PcTd>
+                <PcTd label="Outbound" mono :title="entry.outbound">{{ entry.outbound }}<small v-if="entry.server">{{ entry.server }}:{{ entry.oport }}</small></PcTd>
+                <PcTd label="Config" stack="state"><PcStateDot :tone="entry.status === 'ok' ? 'healthy' : 'error'" :label="entry.status" /><small v-if="entry.error" class="pc-danger-text" :title="entry.error">{{ entry.error }}</small></PcTd>
+                <PcTd label="Service" stack="state"><PcStatePill :tone="entry.service === 'down' ? 'error' : 'healthy'" :label="entry.service" /></PcTd>
+                <PcActionsCell>
+                  <PcButton compact>Details</PcButton>
+                  <PcIconButton bordered :label="'Connections through ' + entry.name"><Waypoints :size="14" /></PcIconButton>
+                </PcActionsCell>
+              </PcRow>
+            </template>
+            <template v-if="entry.bank && banks.isOpen(node.id)">
+              <PcRow v-for="line in entry.lines" :key="line.hash">
+                <PcNameCell :name="line.name" :id="line.type + ' / ' + line.hash" :level="2" />
+                <PcTd label="Role" stack="state"><PcStatePill tone="neutral" label="relay" /></PcTd>
+                <PcTd label="Endpoint" mono>:{{ line.port }} {{ line.host }}<small>listen 0.0.0.0:{{ line.port }}</small></PcTd>
+                <PcTd label="Reality SNI" mono>{{ line.sni }}</PcTd>
+                <PcTd label="Users" numeric>{{ line.users }}</PcTd>
+                <PcTd label="Outbound" mono>{{ line.outbound }}<small>{{ line.server }}:{{ line.oport }}</small></PcTd>
+                <PcTd label="Config" stack="state"><PcStateDot tone="healthy" label="ok" /></PcTd>
+                <PcTd label="Service" stack="state"><PcStatePill tone="healthy" label="running" /></PcTd>
+                <PcActionsCell><PcButton compact>Details</PcButton></PcActionsCell>
+              </PcRow>
+            </template>
+          </template>
+        </template>
+      </tbody>
+    </PcTable>
+    <PcEmptyState v-else kind="no-match" title="No line matches that search" :icon="Radar">
+      <p>Nothing in 138 lines across 25 nodes matches <span class="pc-mono">{{ search.trim() }}</span>. The search covers node, line name, protocol, host, status, outbound reference and error text.</p>
+      <template #actions><PcButton @click="search = ''">Clear the search</PcButton></template>
+    </PcEmptyState>
+    <PcPagination v-if="visible.length > 9" v-model:page="page" :pages="3" :from="1" :to="10" :total="25" noun="Nodes" note="searched across every one of them" label="Fleet pagination" />
+  </PcPanel>
+
+  <PcPanel v-else-if="lens === 'topology'" id="pc-panel-topology" role="tabpanel" aria-labelledby="pc-tab-topology">
+    <PcEmptyState kind="permission" title="This session cannot read chains" :icon="Radar">
+      <p>The topology lens needs <span class="pc-mono">lines.chains</span>, which this session's token does not carry. The fleet lens still shows every line and its outbound.</p>
+    </PcEmptyState>
+  </PcPanel>
+
+  <PcPanel v-else id="pc-panel-attention" role="tabpanel" aria-labelledby="pc-tab-attention">
+    <PcPanelHeader title="Attention" description="Every claim this page can prove that needs a hand, with the row that proves it and the action that clears it."><PcCount value="2 items" /></PcPanelHeader>
+    <PcSkeleton label="Loading attention" :count="4" />
+  </PcPanel>
+
+  <PcModal :open="modal" title="Roll out managed lines" description="A plan is written for every node that has no managed line, then queued for approval." @close="modal = false">
+    <p>Twenty-five nodes report an inbound and none carries a managed line. The rollout plans one vless line per node on port 24443 and needs one approval per node.</p>
+    <template #footer>
+      <PcButton @click="modal = false">Cancel</PcButton>
+      <PcButton variant="primary" @click="modal = false">Plan 25 lines</PcButton>
+    </template>
+  </PcModal>
+  <PcConfirmDialog :open="confirm" title="Remove 3 stale lines?" message="The lines have not reported in 14 days. Their node entries stay; only the line records go." confirm-label="Remove" destructive @confirm="confirm = false" @cancel="confirm = false" />
+</PcWorkspace>`,
+    };
+
+    const app = createApp(App);
+    for (const [name, component] of Object.entries(chassis)) if (name.startsWith("Pc")) app.component(name, component);
+    // A runtime-compiled template resolves tags through the registry, not setup state.
+    for (const [name, component] of Object.entries({ Radar, RefreshCw, Plus, Waypoints })) app.component(name, component);
+    app.mount("#app");
+  </script>
+</body>
+</html>
