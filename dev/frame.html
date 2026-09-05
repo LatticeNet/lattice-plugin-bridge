@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Chassis frame</title>
+  <!-- Renders harness.html inside an iframe of a fixed CSS size, scaled to fit
+       a small window, so a 1440px layout can be looked at on a laptop screen.
+       ?w=1440&h=900&scale=0.33&q=<harness query> -->
+  <style>
+    body { margin: 0; background: #262a30; }
+    #host { transform-origin: 0 0; }
+    iframe { display: block; border: 0; background: #fff; }
+  </style>
+</head>
+<body>
+  <div id="host"><iframe id="frame" title="harness"></iframe></div>
+  <script>
+    const p = new URLSearchParams(location.search);
+    const w = Number(p.get("w") ?? 1440), h = Number(p.get("h") ?? 900);
+    const scale = p.has("scale") ? Number(p.get("scale")) : Math.min(1, (innerWidth - 16) / w);
+    const frame = document.getElementById("frame");
+    frame.width = w; frame.height = h;
+    frame.src = "harness.html?" + (p.get("q") ?? "");
+    const host = document.getElementById("host");
+    host.style.transform = `scale(${scale})`;
+    host.style.width = `${w}px`; host.style.height = `${h}px`;
+    document.body.style.width = `${w * scale}px`; document.body.style.height = `${h * scale}px`;
+  </script>
+</body>
+</html>

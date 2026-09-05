@@ -1,28 +1,44 @@
 {
   "name": "@latticenet/plugin-bridge",
   "version": "0.1.0-alpha.2",
-  "description": "The one Lattice plugin-UI bridge client: nonce handshake, exact-origin pinning, call transport, typed errors. Replaces the per-plugin bridge.ts copies.",
+  "description": "The one Lattice plugin-UI bridge client (nonce handshake, exact-origin pinning, call transport, typed errors) and the shared page chassis every plugin frame renders on the published token contract.",
   "license": "MIT",
   "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./chassis": {
+      "types": "./dist/chassis/index.d.ts",
+      "import": "./dist/chassis/index.js"
+    },
+    "./chassis.css": "./dist/chassis/chassis.css"
   },
   "files": [
     "dist",
     "README.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node -e \"require('node:fs').cpSync('src/chassis/chassis.css','dist/chassis/chassis.css')\"",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",
+    "@vue/test-utils": "^2.5.0",
+    "jsdom": "^26.1.0",
     "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "vue": "^3.5.42"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0"
+  },
+  "peerDependenciesMeta": {
+    "vue": {
+      "optional": true
+    }
   }
 }
