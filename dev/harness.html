@@ -125,6 +125,7 @@
         <PcLensTab value="fleet" label="Fleet" />
         <PcLensTab value="topology" label="Topology" />
         <PcLensTab value="attention" label="Attention" :count="2" count-tone="warning" />
+        <PcLensTab value="outbounds" label="Outbounds" :count="7" />
       </PcLensTabs>
     </template>
     <template #search><PcSearchField v-model="search" label="Search lines" placeholder="Search node, line, endpoint, outbound or error" /></template>
@@ -227,9 +228,15 @@
     </PcEmptyState>
   </PcPanel>
 
-  <PcPanel v-else id="pc-panel-attention" role="tabpanel" aria-labelledby="pc-tab-attention">
+  <PcPanel v-else-if="lens === 'attention'" id="pc-panel-attention" role="tabpanel" aria-labelledby="pc-tab-attention">
     <PcPanelHeader title="Attention" description="Every claim this page can prove that needs a hand, with the row that proves it and the action that clears it."><PcCount value="2 items" /></PcPanelHeader>
     <PcSkeleton label="Loading attention" :count="4" />
+  </PcPanel>
+
+  <!-- A fourth tab so the strip runs past a 375 frame the way NetGuard's does. -->
+  <PcPanel v-else id="pc-panel-outbounds" role="tabpanel" aria-labelledby="pc-tab-outbounds">
+    <PcPanelHeader title="Outbounds" description="The seven dial-out targets the relay lines share, with the lines behind each."><PcCount value="7 outbounds" /></PcPanelHeader>
+    <PcSkeleton label="Loading outbounds" :count="3" />
   </PcPanel>
 
   <PcModal :open="modal" title="Roll out managed lines" description="A plan is written for every node that has no managed line, then queued for approval." @close="modal = false">
