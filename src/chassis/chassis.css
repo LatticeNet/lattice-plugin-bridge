@@ -436,7 +436,11 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
   .pc-stat:last-child, .pc-skeleton-strip > div:last-child { border-bottom: 0; }
   .pc-toolbar { flex-direction: column; align-items: stretch; }
   .pc-toolbar-spacer { display: none; }
-  .pc-lens-tabs { overflow-x: auto; }
+  /* The strip is stretched to the frame here, and four labelled tabs with
+     counts run past 341px at 375. A tab never breaks mid-label, so the strip
+     wraps to a second row instead of clipping the last tab behind a scroll
+     that nothing announces; every tab stays visible and in the tablist. */
+  .pc-lens-tabs { flex-wrap: wrap; row-gap: 2px; }
   .pc-lens-tab { flex: 1 1 auto; justify-content: center; }
   .pc-search { max-width: none; }
   .pc-toolbar > .pc-button { width: 100%; }
