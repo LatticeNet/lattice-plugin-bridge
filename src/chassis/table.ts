@@ -1,4 +1,4 @@
-import { computed, defineComponent, h, inject, provide, ref, type ComputedRef, type InjectionKey, type PropType, type Ref } from "vue";
+import { computed, defineComponent, h, inject, onBeforeUnmount, onMounted, provide, ref, type ComputedRef, type InjectionKey, type PropType, type Ref } from "vue";
 
 import { PcStateDot, type StateTone } from "./chips.js";
 import { iconChevronRight } from "./icons.js";
@@ -81,6 +81,31 @@ export const PcTable = defineComponent({
     const stacked = computed(() => props.stacked ?? narrow.value ?? false);
     provide(STACKED_KEY, stacked);
 
+    // The wrap scrolls sideways only while the table is wider than it. At rest
+    // it is not a scroll container at all, so the sticky header pins to the
+    // document (see .pc-table-wrap in chassis.css). Measured, not guessed: the
+    // table's min-width is the consumer's and the frame width is the host's.
+    const wrap = ref<HTMLElement>();
+    const table = ref<HTMLElement>();
+    const overflowX = ref(false);
+    let observer: ResizeObserver | undefined;
+    function measure(): void {
+      if (!wrap.value || !table.value) return;
+      overflowX.value = table.value.getBoundingClientRect().width > wrap.value.getBoundingClientRect().width + 0.5;
+    }
+    onMounted(() => {
+      if (typeof ResizeObserver !== "function") {
+        // Without a measurement the safe state is the old one: a scroller that
+        // clips nothing, at the cost of the pinned header.
+        overflowX.value = true;
+        return;
+      }
+      observer = new ResizeObserver(measure);
+      if (wrap.value) observer.observe(wrap.value);
+      if (table.value) observer.observe(table.value);
+    });
+    onBeforeUnmount(() => observer?.disconnect());
+
     function onKeydown(event: KeyboardEvent): void {
       const step = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
       if (!step) return;
@@ -96,10 +121,11 @@ export const PcTable = defineComponent({
     }
 
     return () =>
-      h("div", { class: "pc-table-wrap" }, [
+      h("div", { class: "pc-table-wrap", ref: wrap, "data-overflow": overflowX.value ? "x" : undefined }, [
         h(
           "table",
           {
+            ref: table,
             class: "pc-table",
             style: { "--pc-table-min": `${props.minWidth}px` },
             "data-stacked": stacked.value ? "true" : undefined,

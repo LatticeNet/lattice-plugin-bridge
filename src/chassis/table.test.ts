@@ -1,4 +1,8 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { mount } from "@vue/test-utils";
 import { defineComponent, h, nextTick, ref } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -211,5 +215,78 @@ describe("stacked form under 480px", () => {
       },
     });
     expect(mount(Probe).text()).toBe("undefined");
+  });
+});
+
+describe("scroll wrap: the header pins to the document unless the table is wider than the frame", () => {
+  const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "chassis.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+
+  function rule(selector: string): string {
+    const match = css.match(new RegExp(`(?:^|\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`));
+    expect(match, `a rule for ${selector}`).toBeTruthy();
+    return match![1];
+  }
+
+  it("does not make the wrap a scroll container at rest, so a sticky th has the document to pin to", () => {
+    // `overflow-x: auto` computes overflow-y to auto as well, which turns the
+    // wrap into the nearest scrollport: the header then sticks to a box that
+    // never scrolls vertically and rides off with the rows.
+    expect(rule(".pc-table-wrap")).toMatch(/overflow-x:\s*clip/);
+    expect(rule(".pc-table-wrap")).not.toMatch(/overflow-x:\s*auto/);
+    expect(rule('.pc-table-wrap[data-overflow="x"]')).toMatch(/overflow-x:\s*auto/);
+  });
+
+  it("marks the wrap as sideways-scrolling only while the table is wider than it", async () => {
+    let callback: ResizeObserverCallback | undefined;
+    const observed: Element[] = [];
+    class FakeResizeObserver {
+      constructor(cb: ResizeObserverCallback) { callback = cb; }
+      observe(target: Element): void { observed.push(target); }
+      unobserve(): void {}
+      disconnect(): void { observed.length = 0; }
+    }
+    vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+    try {
+      const wrapper = mount(Fleet, { attachTo: document.body });
+      const wrap = wrapper.find(".pc-table-wrap").element as HTMLElement;
+      const table = wrapper.find(".pc-table").element as HTMLElement;
+      expect(observed).toContain(wrap);
+      expect(observed).toContain(table);
+
+      let wrapWidth = 1440;
+      let tableWidth = 1000;
+      vi.spyOn(wrap, "getBoundingClientRect").mockImplementation(() => ({ width: wrapWidth }) as DOMRect);
+      vi.spyOn(table, "getBoundingClientRect").mockImplementation(() => ({ width: tableWidth }) as DOMRect);
+
+      callback!([], {} as ResizeObserver);
+      await nextTick();
+      expect(wrap.getAttribute("data-overflow")).toBeNull();
+
+      wrapWidth = 375;
+      callback!([], {} as ResizeObserver);
+      await nextTick();
+      expect(wrap.getAttribute("data-overflow")).toBe("x");
+
+      wrapWidth = 1440;
+      callback!([], {} as ResizeObserver);
+      await nextTick();
+      expect(wrap.getAttribute("data-overflow")).toBeNull();
+
+      wrapper.unmount();
+      expect(observed).toHaveLength(0);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("falls back to a sideways scroller where ResizeObserver is missing, so nothing is clipped", async () => {
+    vi.stubGlobal("ResizeObserver", undefined);
+    try {
+      const wrapper = mount(Fleet, { attachTo: document.body });
+      await nextTick();
+      expect(wrapper.find(".pc-table-wrap").attributes("data-overflow")).toBe("x");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

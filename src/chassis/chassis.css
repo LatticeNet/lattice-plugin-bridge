@@ -259,7 +259,16 @@
 .pc-panel-header p { margin: var(--space-1) 0 0; max-width: var(--pc-measure); color: var(--muted-foreground); font-size: var(--pc-text-sm); line-height: 1.5; }
 .pc-panel-header-end { display: flex; align-items: center; gap: var(--space-2); }
 .pc-panel-body { padding: var(--space-4); }
-.pc-table-wrap { width: 100%; overflow-x: auto; overflow-y: visible; }
+/* The wrap is not a scroll container at rest. `overflow-x: auto` would compute
+   overflow-y to auto as well and make the wrap the nearest scrollport, so the
+   sticky header below would pin to a box that never scrolls vertically and
+   ride off with the rows. `clip` clips without creating a scrollport, so the
+   header pins to the document, which is what scrolls inside the frame. PcTable
+   measures the table against the wrap and sets data-overflow="x" only while
+   the columns are wider than the frame; then the wrap scrolls sideways and the
+   name and actions columns pin to its edges. */
+.pc-table-wrap { width: 100%; overflow-x: clip; overflow-y: visible; }
+.pc-table-wrap[data-overflow="x"] { overflow-x: auto; }
 .pc-table { width: 100%; min-width: var(--pc-table-min, 720px); border-collapse: separate; border-spacing: 0; font-size: var(--text-body); }
 .pc-table th { position: sticky; top: 0; z-index: 2; height: 32px; padding: 0 var(--space-3); color: var(--muted-foreground); background: var(--pc-head-surface); box-shadow: inset 0 -1px 0 var(--border); font-size: var(--pc-text-label); font-weight: 600; letter-spacing: 0.04em; text-align: left; text-transform: uppercase; white-space: nowrap; }
 .pc-table td { height: var(--row-h); padding: 0 var(--space-3); border-bottom: 1px solid var(--pc-hairline); vertical-align: middle; transition: background-color var(--pc-dur) var(--pc-ease); }
