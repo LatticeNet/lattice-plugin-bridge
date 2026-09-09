@@ -1,6 +1,6 @@
 {
   "name": "@latticenet/plugin-bridge",
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0",
   "description": "The one Lattice plugin-UI bridge client (nonce handshake, exact-origin pinning, call transport, typed errors) and the shared page chassis every plugin frame renders on the published token contract.",
   "license": "MIT",
   "type": "module",
