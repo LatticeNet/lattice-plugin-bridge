@@ -159,5 +159,6 @@ still carries its own `ui/src/bridge.ts` copy and has not been migrated.
 
 ## Branching
 
-Work lands on `integration` via task branches. `main` is the stable baseline and currently
-carries only this README, so read `integration` for the source.
+Work lands on `integration` via task branches. `main` fast-forwards to `integration` when
+a release is cut, so it always carries a released tree; read `integration` for the newest
+source.
