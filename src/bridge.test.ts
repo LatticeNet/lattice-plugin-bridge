@@ -8,6 +8,7 @@ import {
   BridgeRemoteError,
   BridgeTimeoutError,
   canCall,
+  validPageState,
   type HostInit,
 } from "./bridge";
 
@@ -316,5 +317,80 @@ describe("theme state and subscription", () => {
     const pendingSecond = second.call("svc", "read", null);
     second.dispose();
     await expect(pendingSecond.promise).rejects.toThrow("Plugin host disconnected");
+  });
+});
+
+describe("page state", () => {
+  it("passes the address state through init, and leaves it out when the host sent none", async () => {
+    const withState = harness();
+    const client = withState.make();
+    withState.dispatch(initFor(client.nonce, { pageState: { view: "nodes", open: "node_a" } }));
+    await expect(client.init).resolves.toMatchObject({ pageState: { view: "nodes", open: "node_a" } });
+
+    const empty = harness();
+    const emptyClient = empty.make();
+    empty.dispatch(initFor(emptyClient.nonce, { pageState: {} }));
+    expect((await emptyClient.init).pageState).toEqual({});
+
+    // A console from before the contract: no field, so the page keeps its own.
+    const old = harness();
+    const oldClient = old.make();
+    old.dispatch(initFor(oldClient.nonce));
+    expect("pageState" in (await oldClient.init)).toBe(false);
+  });
+
+  it("sets aside a state that breaks the rules, and drops a reserved key on its own", async () => {
+    const cases: [unknown, unknown][] = [
+      [{ view: "nodes", Bad: "x" }, undefined],
+      [{ view: "x".repeat(257) }, undefined],
+      [{ view: 3 }, undefined],
+      [Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`k${i}`, "v"])), undefined],
+      [["view"], undefined],
+      // The host never sends these; if one arrives it costs only itself.
+      [{ view: "nodes", code: "123456", token: "t" }, { view: "nodes" }],
+    ];
+    for (const [sent, expected] of cases) {
+      const { dispatch, make } = harness();
+      const client = make();
+      dispatch(initFor(client.nonce, { pageState: sent }));
+      // A bad state is a host fault, not a reason to fail the start.
+      const init = await client.init;
+      expect(init.pageState).toEqual(expected);
+    }
+  });
+
+  it("sends the full state after init only, inside the rules, to the pinned origin", async () => {
+    const { posted, dispatch, make } = harness();
+    const client = make();
+    const states = () => posted.filter((entry) => (entry.message as { type?: string }).type === "lattice.plugin.state");
+
+    // Before init the page has not seen the address it would overwrite.
+    client.sendState({ view: "groups" });
+    expect(states()).toHaveLength(0);
+
+    dispatch(initFor(client.nonce));
+    await client.init;
+    client.sendState({ view: "groups", q: "port:22/tcp" });
+    expect(states()).toEqual([
+      { message: { type: "lattice.plugin.state", nonce: client.nonce, state: { view: "groups", q: "port:22/tcp" } }, target: "https://dash.example" },
+    ]);
+
+    // Whole or nothing, as the host applies it.
+    client.sendState({ view: "groups", redirect: "/evil" });
+    client.sendState({ view: "groups", Q: "x" });
+    expect(states()).toHaveLength(1);
+
+    client.dispose();
+    client.sendState({ view: "zones" });
+    expect(states()).toHaveLength(1);
+  });
+
+  it("validPageState is the contract's rules, whole or nothing", () => {
+    expect(validPageState({ view: "nodes", show: "attention" })).toEqual({ view: "nodes", show: "attention" });
+    expect(validPageState({})).toEqual({});
+    expect(validPageState({ "1view": "x" })).toBeUndefined();
+    expect(validPageState({ mfa: "1" })).toBeUndefined();
+    expect(validPageState(null)).toBeUndefined();
+    expect(validPageState("view=nodes")).toBeUndefined();
   });
 });

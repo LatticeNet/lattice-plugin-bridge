@@ -15,7 +15,9 @@
  *    `event.source === window.parent`;
  *  - `lattice.host.init` must declare version "1", the consumer's plugin id,
  *    and one of its registered routes;
- *  - theme application filters host tokens to a fixed allowlist.
+ *  - theme application filters host tokens to a fixed allowlist;
+ *  - page state crosses in either direction only inside the contract's
+ *    rules (validPageState), and never before init.
  */
 
 export interface CallableInterface {
@@ -40,6 +42,56 @@ export interface HostInit {
   colorScheme: string;
   designTokens: Record<string, string>;
   interfaces: CallableInterface[];
+  /**
+   * The query of the console's plugin route, when the host keeps page state
+   * in its address ({} when that address has none). Absent from a host that
+   * predates the contract, and from one whose state breaks the rules (a host
+   * fault, set aside rather than failing the start); either way the page
+   * then keeps its state in its own document.
+   */
+  pageState?: PageState;
+}
+
+/**
+ * Plugin page state in the console address (bridge v1, additive).
+ *
+ * A plugin page's layer, open record, grouping and search have to survive a
+ * reload and travel in a pasted link. The frame URL cannot carry them: the
+ * console builds a content-addressed frame URL with no query. So the console
+ * route's query carries them, the host hands it over in `lattice.host.init`
+ * as `pageState`, and the plugin sends its full state back with sendState()
+ * (`lattice.plugin.state`), which the host writes into its query with a
+ * history replace. Both sides apply the same rules: at most 16 keys, keys
+ * matching `^[a-z][a-z0-9_]{0,23}$`, string values of at most 256 characters,
+ * nothing before init, and the console's own keys never cross either way
+ * (lattice-dashboard src/views/platform/pluginBridgeModel.ts).
+ */
+export type PageState = Record<string, string>;
+
+export const PAGE_STATE_MAX_KEYS = 16;
+export const PAGE_STATE_KEY_PATTERN = /^[a-z][a-z0-9_]{0,23}$/;
+export const PAGE_STATE_MAX_VALUE_LENGTH = 256;
+/** The console's sign-in, SSO and MFA query keys. They never cross the bridge. */
+export const PAGE_STATE_RESERVED_KEYS: ReadonlySet<string> = new Set([
+  "redirect", "next", "code", "state", "token", "sso_error", "totp_challenge", "mfa",
+]);
+
+/**
+ * The state if every entry keeps the rules, otherwise undefined. One bad
+ * entry sets the whole state aside, as the host drops the whole message, so
+ * a state is never applied or sent by halves.
+ */
+export function validPageState(value: unknown): PageState | undefined {
+  if (!isRecord(value)) return undefined;
+  const entries = Object.entries(value);
+  if (entries.length > PAGE_STATE_MAX_KEYS) return undefined;
+  const state: PageState = {};
+  for (const [key, entry] of entries) {
+    if (!PAGE_STATE_KEY_PATTERN.test(key) || PAGE_STATE_RESERVED_KEYS.has(key)) return undefined;
+    if (typeof entry !== "string" || entry.length > PAGE_STATE_MAX_VALUE_LENGTH) return undefined;
+    state[key] = entry;
+  }
+  return state;
 }
 
 export interface BridgeClientOptions {
@@ -98,7 +150,8 @@ type PluginMessage =
   | { type: "lattice.plugin.ready"; nonce: string }
   | { type: "lattice.plugin.call"; nonce: string; id: string; service: string; method: string; payload: unknown }
   | { type: "lattice.plugin.cancel"; nonce: string; id: string }
-  | { type: "lattice.plugin.resize"; nonce: string; height: number };
+  | { type: "lattice.plugin.resize"; nonce: string; height: number }
+  | { type: "lattice.plugin.state"; nonce: string; state: PageState };
 
 /**
  * Token contract v2: the custom properties a Lattice host may write onto the
@@ -165,6 +218,7 @@ export class BridgeClient {
   private readonly themeListeners = new Set<(theme: HostTheme) => void>();
   private sequence = 0;
   private disposed = false;
+  private initialized = false;
   private readyAttempts = 0;
   private readyTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -231,6 +285,19 @@ export class BridgeClient {
     };
   }
 
+  /**
+   * Hand the page's full state to the console for its address. There is no
+   * answer: a host that keeps page state replaces its query with this, and
+   * one that does not ignores the message. Nothing is sent before init (the
+   * page has not yet seen the address it would overwrite) or after dispose,
+   * and a state that breaks the rules is not sent at all.
+   */
+  sendState(state: PageState): void {
+    if (this.disposed || !this.initialized) return;
+    const valid = validPageState(state);
+    if (valid) this.post({ type: "lattice.plugin.state", nonce: this.nonce, state: valid });
+  }
+
   resize(height: number): void {
     if (!this.disposed && Number.isFinite(height)) {
       this.post({ type: "lattice.plugin.resize", nonce: this.nonce, height: Math.ceil(height) });
@@ -250,6 +317,7 @@ export class BridgeClient {
         const init = this.parseInit(message);
         if (!init) return;
         this.clearReadyTimer();
+        this.initialized = true;
         this.setTheme({ colorScheme: init.colorScheme, designTokens: init.designTokens });
         this.initResolve(init);
         return;
@@ -340,6 +408,13 @@ export class BridgeClient {
           !value.methods.every((method) => typeof method === "string")) return undefined;
       interfaces.push({ service: value.service, methods: value.methods as string[] });
     }
+    // The host filters its query before sending it, so a state that still
+    // breaks the rules is a host fault: it is set aside rather than failing
+    // the start. A reserved console key should never arrive; if one does, it
+    // is dropped on its own rather than costing the rest of the state.
+    const pageState = message.pageState === undefined
+      ? undefined
+      : validPageState(isRecord(message.pageState) ? withoutReservedKeys(message.pageState) : message.pageState);
     return {
       version: message.version,
       pluginId: message.pluginId,
@@ -349,6 +424,7 @@ export class BridgeClient {
       colorScheme: message.colorScheme,
       designTokens: message.designTokens,
       interfaces,
+      ...(pageState ? { pageState } : {}),
     };
   }
 }
@@ -384,6 +460,10 @@ function applyTheme(colorScheme: string, tokens: Record<string, string>): void {
   for (const [name, value] of Object.entries(tokens)) {
     if (HOST_TOKEN_NAMES.has(name)) document.documentElement.style.setProperty(name, value);
   }
+}
+
+function withoutReservedKeys(value: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(value).filter(([key]) => !PAGE_STATE_RESERVED_KEYS.has(key)));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
