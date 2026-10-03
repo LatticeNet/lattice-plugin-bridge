@@ -12,8 +12,8 @@
 export { PcWorkspace, PcPageHeader, PcProofLine, PcNotice, PcStatStrip, PcStatCard } from "./page.js";
 export type { NoticeTone, StatTone } from "./page.js";
 
-export { PcToolbar, PcLensTabs, PcLensTab, PcSearchField, PcButton, PcIconButton } from "./toolbar.js";
-export type { ButtonVariant } from "./toolbar.js";
+export { PcToolbar, PcLensTabs, PcLensTab, PcSearchField, PcButton, PcIconButton, revealSelectedTab } from "./toolbar.js";
+export type { ButtonVariant, LensVariant, TabRow } from "./toolbar.js";
 
 export {
   PcPanel,

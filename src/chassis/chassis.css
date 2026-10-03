@@ -226,6 +226,22 @@
 .pc-lens-tab:hover { color: var(--foreground); }
 .pc-lens-tab[aria-selected="true"] { color: var(--foreground); background: var(--muted); box-shadow: inset 0 0 0 1px var(--border); }
 .pc-lens-tab:focus-visible { outline-offset: 1px; }
+/* The layer row (PcLensTabs variant="layer", design 23 3.4): a row of its
+   own above the layer's toolbar, an underline row from 620px and a segmented
+   control below, words only. The vpn-core Lines page draws it this way and
+   is the reference. The hairline and the selected underline are inset
+   shadows, not borders: a tab pulled over a border with a negative margin
+   hangs a pixel out of the sideways scroller and makes it scroll up and down
+   by that pixel. The row keeps one line and scrolls sideways when the tabs
+   are wider than the frame; PcLensTabs scrolls the selected tab into view. */
+.pc-lens-tabs[data-variant="layer"] { display: flex; width: 100%; max-width: 100%; flex-wrap: nowrap; align-items: flex-end; gap: var(--space-1); overflow-x: auto; overflow-y: hidden; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: inset 0 -1px 0 var(--border); scrollbar-width: thin; }
+.pc-workspace > .pc-lens-tabs[data-variant="layer"] { margin-bottom: var(--space-4); }
+.pc-lens-tabs[data-variant="layer"] > .pc-lens-tab { flex: 0 0 auto; min-height: 36px; gap: 6px; margin: 0; padding: var(--space-2) var(--space-3); border-radius: 0; background: transparent; box-shadow: none; transition: color var(--pc-dur) var(--pc-ease), box-shadow var(--pc-dur) var(--pc-ease); }
+.pc-lens-tabs[data-variant="layer"] > .pc-lens-tab[aria-selected="true"] { color: var(--foreground); background: transparent; box-shadow: inset 0 -2px 0 var(--primary); }
+.pc-lens-tabs[data-variant="layer"] > .pc-lens-tab:focus-visible { border-radius: var(--radius-sm); outline-offset: -2px; }
+/* The count reads as a quiet tally beside a layer's name, selected or not. */
+.pc-lens-tabs[data-variant="layer"] .pc-count:not([data-tone]) { color: var(--muted-foreground); }
+.pc-lens-tabs[data-variant="layer"] .pc-count { font-size: var(--pc-text-badge); font-weight: 650; }
 .pc-count { display: inline-flex; min-width: 18px; height: 18px; align-items: center; justify-content: center; border-radius: 9px; padding: 0 5px; color: var(--foreground); background: var(--muted); font-size: var(--pc-text-label); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pc-count[data-tone="error"] { color: var(--destructive-foreground); background: var(--destructive); }
 .pc-count[data-tone="warning"] { color: var(--warning-foreground); background: var(--warning); }
@@ -448,6 +464,12 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
      that nothing announces; every tab stays visible and in the tablist. */
   .pc-lens-tabs { flex-wrap: wrap; row-gap: 2px; }
   .pc-lens-tab { flex: 1 1 auto; justify-content: center; }
+  /* The layer row is a segmented control here and stays on one line, as
+     vpn-core's does. 8px a side rather than 12: four layers with their
+     counts then fit a 375 frame (NetGuard measured 331px of 341). */
+  .pc-lens-tabs[data-variant="layer"] { flex-wrap: nowrap; gap: 0; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); box-shadow: none; }
+  .pc-lens-tabs[data-variant="layer"] > .pc-lens-tab { flex: 0 0 auto; min-height: 30px; padding: 4px var(--space-2); border-radius: calc(var(--radius-md) - 2px); }
+  .pc-lens-tabs[data-variant="layer"] > .pc-lens-tab[aria-selected="true"] { background: var(--muted); box-shadow: inset 0 0 0 1px var(--border); }
   .pc-search { max-width: none; }
   .pc-toolbar > .pc-button { width: 100%; }
   .pc-toolbar-secondary > .pc-button { flex: 1 1 0; }
@@ -491,3 +513,10 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
 .pc-table[data-stacked="true"] td.pc-name[data-level="1"] { padding-left: 22px; }
 .pc-table[data-stacked="true"] td.pc-name[data-level="2"] { padding-left: 44px; }
 .pc-table[data-stacked="true"] .pc-detail-row > td { padding: 0; }
+
+/* 44px targets on a coarse pointer (design 23 wave 1 decision). Last in the
+   file, so it wins over the narrow and stacked rules that set these sizes at
+   the same specificity. */
+@media (pointer: coarse) {
+  .pc-lens-tabs[data-variant="layer"] > .pc-lens-tab { min-height: 44px; }
+}
