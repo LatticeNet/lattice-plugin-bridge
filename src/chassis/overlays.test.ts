@@ -7,7 +7,7 @@ import { mount } from "@vue/test-utils";
 import { defineComponent, h, nextTick, ref } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { PcBatchBar, PcConfirmDialog, PcModal, PcSidePanel } from "./overlays";
+import { PcBatchBar, PcConfirmDialog, PcModal, PcSidePanel, SIDE_PANEL_BESIDE_QUERY, SIDE_PANEL_OUTPUT_BESIDE_QUERY } from "./overlays";
 import { closeTopOverlay, overlayDepth, resetOverlayStack, useOverlayEscape } from "./overlayStack";
 import { PcNotice, PcPageHeader, PcProofLine, PcStatCard, PcStatStrip } from "./page";
 import { PcEmptyState, PcSkeleton } from "./states";
@@ -134,7 +134,7 @@ describe("overlay stack", () => {
 
 /** A frame of `width` px as matchMedia answers min-width queries, resizable. */
 function stubFrameWidth(width: number) {
-  const listeners = new Set<(event: { matches: boolean }) => void>();
+  const listeners = new Map<(event: { matches: boolean }) => void, string>();
   let current = width;
   const answer = (query: string) => {
     const min = /min-width:\s*(\d+)px/.exec(query);
@@ -145,13 +145,13 @@ function stubFrameWidth(width: number) {
       return answer(query);
     },
     media: query,
-    addEventListener: (_: string, listener: (event: { matches: boolean }) => void) => listeners.add(listener),
+    addEventListener: (_: string, listener: (event: { matches: boolean }) => void) => listeners.set(listener, query),
     removeEventListener: (_: string, listener: (event: { matches: boolean }) => void) => listeners.delete(listener),
   }));
   return {
     resize(next: number) {
       current = next;
-      for (const listener of listeners) listener({ matches: answer("(min-width: 768px)") });
+      for (const [listener, query] of listeners) listener({ matches: answer(query) });
     },
   };
 }
@@ -369,6 +369,40 @@ describe("side panel beside the collection", () => {
     expect(wrapper.find(".pc-side-panel").attributes("role")).toBe("dialog");
     expect(wrapper.find(".pc-side-panel").attributes("aria-modal")).toBe("true");
     wrapper.unmount();
+  });
+
+  it("the size picks the threshold: a record panel is beside the rows at 1024px, an output panel only from 1280px", async () => {
+    const frame = stubFrameWidth(1024);
+    const panel = (size: "record" | "output") => mount(PcSidePanel, { props: { open: true, title: `A ${size}`, size }, attachTo: document.body });
+    const record = panel("record");
+    const output = panel("output");
+    expect(record.find(".pc-overlay").attributes("data-modal")).toBe("false");
+    expect(record.find(".pc-side-panel").attributes("role")).toBe("complementary");
+    // At 1024px a 960px document would cover all but 64px of rows: modal instead.
+    expect(output.find(".pc-overlay").attributes("data-modal")).toBeUndefined();
+    expect(output.find(".pc-side-panel").attributes("role")).toBe("dialog");
+    expect(output.find(".pc-side-panel").attributes("aria-modal")).toBe("true");
+    frame.resize(1280);
+    await nextTick();
+    expect(output.find(".pc-overlay").attributes("data-modal")).toBe("false");
+    expect(output.find(".pc-side-panel").attributes("role")).toBe("complementary");
+    frame.resize(767);
+    await nextTick();
+    expect(record.find(".pc-overlay").attributes("data-modal")).toBeUndefined();
+    expect(output.find(".pc-overlay").attributes("data-modal")).toBeUndefined();
+    record.unmount();
+    output.unmount();
+  });
+
+  it("beside the rows the panel leaves them 320px, and each size's threshold fits its width plus those 320px", () => {
+    const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "chassis.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const rule = (selector: string) => css.match(new RegExp(`(?:^|\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+    const reserved = Number(/max-width:\s*calc\(100% - (\d+)px\)/.exec(rule('.pc-overlay[data-modal="false"] > .pc-side-panel'))?.[1]);
+    expect(reserved).toBe(320);
+    const width = (selector: string) => Number(/width:\s*min\((\d+)px,\s*100%\)/.exec(rule(selector))?.[1]);
+    const threshold = (query: string) => Number(/min-width:\s*(\d+)px/.exec(query)?.[1]);
+    expect(width(".pc-side-panel") + reserved).toBeLessThanOrEqual(threshold(SIDE_PANEL_BESIDE_QUERY));
+    expect(width('.pc-side-panel[data-size="output"]') + reserved).toBe(threshold(SIDE_PANEL_OUTPUT_BESIDE_QUERY));
   });
 
   it("the sheet drops the scrim and passes pointer events through the wrapper, not the panel", () => {

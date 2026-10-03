@@ -152,19 +152,32 @@ export const PcModal = defineComponent({
   },
 });
 
-/** The frame width from which a side panel sits beside the collection. */
+/**
+ * The frame width from which a record panel (440px) sits beside the
+ * collection. Beside the rows, a panel always leaves them 320px (chassis.css
+ * caps it at the frame less 320px), and 440 + 320 fits from 768px.
+ */
 export const SIDE_PANEL_BESIDE_QUERY = "(min-width: 768px)";
+
+/**
+ * The frame width from which an output panel (960px) sits beside the
+ * collection: 960 + 320. Narrower, an output document is a modal sheet, so it
+ * keeps its reading width instead of squeezing beside rows it would cover.
+ */
+export const SIDE_PANEL_OUTPUT_BESIDE_QUERY = "(min-width: 1280px)";
 
 /**
  * Docked right: 440px for a record form, 960px for an output document.
  *
- * From 768px it sits beside the collection and is not modal (design 23,
- * section 3.5, the console's ObjectSheet rule): no scrim, the page keeps
- * scrolling, the rows stay live so a click on another row swaps the record,
- * and the panel is a labelled complementary landmark that Tab walks into and
- * out of. Below 768px it is a modal, full-height sheet with a scrim, Tab kept
- * inside. In both, Escape (useOverlayEscape) and the close button close it,
- * and focus returns to the opener; beside the collection, Escape typed in a
+ * From 768px a record panel, and from 1280px an output panel, sits beside the
+ * collection and is not modal (design 23, section 3.5, the console's
+ * ObjectSheet rule): no scrim, the page keeps scrolling, the rows stay live
+ * so a click on another row swaps the record, and the panel is a labelled
+ * complementary landmark that Tab walks into and out of. Beside the rows it
+ * is never wider than the frame less 320px, whatever width a plugin gives
+ * it. Below its threshold it is a modal, full-height sheet with a scrim, Tab
+ * kept inside. In both, Escape (useOverlayEscape) and the close button close
+ * it, and focus returns to the opener; beside the collection, Escape typed in a
  * page field (the rows' search) or pressed in an open row menu stays there.
  * The frame is measured in the first render, so a panel restored from the
  * address opens in its final form. Without matchMedia (a server render, a
@@ -176,8 +189,9 @@ export const PcSidePanel = defineComponent({
   emits: { close: () => true },
   setup(props, { slots, emit }) {
     const emitClose = (): void => emit("close");
-    const beside = useMediaQuery(SIDE_PANEL_BESIDE_QUERY);
-    const modal = computed(() => beside.value !== true);
+    const besideRecord = useMediaQuery(SIDE_PANEL_BESIDE_QUERY);
+    const besideOutput = useMediaQuery(SIDE_PANEL_OUTPUT_BESIDE_QUERY);
+    const modal = computed(() => (props.size === "output" ? besideOutput : besideRecord).value !== true);
     const { dialog, onKeydown } = useDialog(props, emitClose, () => modal.value);
     const titleId = `pc-dialog-${++dialogSequence}`;
     return () => renderDialog({ kind: "panel", className: "pc-side-panel", modal: modal.value }, { ...props, size: props.size }, slots, emitClose, dialog, onKeydown, titleId);
