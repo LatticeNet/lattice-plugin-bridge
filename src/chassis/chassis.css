@@ -236,7 +236,9 @@
    are wider than the frame; PcLensTabs scrolls the selected tab into view. */
 .pc-lens-tabs[data-variant="layer"] { display: flex; width: 100%; max-width: 100%; flex-wrap: nowrap; align-items: flex-end; gap: var(--space-1); overflow-x: auto; overflow-y: hidden; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: inset 0 -1px 0 var(--border); scrollbar-width: thin; }
 .pc-workspace > .pc-lens-tabs[data-variant="layer"] { margin-bottom: var(--space-4); }
-.pc-lens-tabs[data-variant="layer"] > .pc-lens-tab { flex: 0 0 auto; min-height: 36px; gap: 6px; margin: 0; padding: var(--space-2) var(--space-3); border-radius: 0; background: transparent; box-shadow: none; transition: color var(--pc-dur) var(--pc-ease), box-shadow var(--pc-dur) var(--pc-ease); }
+/* The type is set here again because `.pc-workspace button { font: inherit }`
+   outranks `.pc-lens-tab` and would draw the tabs at body size and weight. */
+.pc-lens-tabs[data-variant="layer"] > .pc-lens-tab { flex: 0 0 auto; min-height: 36px; gap: 6px; margin: 0; padding: var(--space-2) var(--space-3); border-radius: 0; background: transparent; box-shadow: none; font-size: var(--pc-text-sm); font-weight: 600; transition: color var(--pc-dur) var(--pc-ease), box-shadow var(--pc-dur) var(--pc-ease); }
 .pc-lens-tabs[data-variant="layer"] > .pc-lens-tab[aria-selected="true"] { color: var(--foreground); background: transparent; box-shadow: inset 0 -2px 0 var(--primary); }
 .pc-lens-tabs[data-variant="layer"] > .pc-lens-tab:focus-visible { border-radius: var(--radius-sm); outline-offset: -2px; }
 /* The count reads as a quiet tally beside a layer's name, selected or not. */

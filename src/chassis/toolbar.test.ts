@@ -209,6 +209,8 @@ describe("the layer row (variant layer)", () => {
     expect(wide).toMatch(/flex-wrap:\s*nowrap/);
     expect(wide).toMatch(/box-shadow:\s*inset 0 -1px 0 var\(--border\)/);
     expect(ruleIn(css, '.pc-lens-tabs[data-variant="layer"] > .pc-lens-tab[aria-selected="true"]')).toMatch(/box-shadow:\s*inset 0 -2px 0 var\(--primary\)/);
+    // Above `.pc-workspace button { font: inherit }` in specificity, so the tabs keep 13px semibold.
+    expect(ruleIn(css, '.pc-lens-tabs[data-variant="layer"] > .pc-lens-tab')).toMatch(/font-size:\s*var\(--pc-text-sm\);\s*font-weight:\s*600/);
     const narrow = mediaBlock("(max-width: 620px)");
     expect(ruleIn(narrow, '.pc-lens-tabs[data-variant="layer"]')).toMatch(/flex-wrap:\s*nowrap/);
     expect(ruleIn(narrow, '.pc-lens-tabs[data-variant="layer"]')).toMatch(/border:\s*1px solid var\(--border\)/);
