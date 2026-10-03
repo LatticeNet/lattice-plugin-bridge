@@ -389,25 +389,33 @@ describe("page state", () => {
     const client = make();
     const states = () => posted.filter((entry) => (entry.message as { type?: string }).type === "lattice.plugin.state");
 
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
     // Before init the page has not seen the address it would overwrite.
-    client.sendState({ view: "groups" });
+    expect(client.sendState({ view: "groups" })).toBe(false);
     expect(states()).toHaveLength(0);
 
     dispatch(initFor(client.nonce));
     await client.init;
-    client.sendState({ view: "groups", q: "port:22/tcp" });
+    expect(client.sendState({ view: "groups", q: "port:22/tcp" })).toBe(true);
     expect(states()).toEqual([
       { message: { type: "lattice.plugin.state", nonce: client.nonce, state: { view: "groups", q: "port:22/tcp" } }, target: "https://dash.example" },
     ]);
 
-    // Whole or nothing, as the host applies it.
-    client.sendState({ view: "groups", redirect: "/evil" });
-    client.sendState({ view: "groups", Q: "x" });
+    // Whole or nothing, as the host applies it. The page hears about it:
+    // false every time, and one console warning for the first refusal only.
+    expect(warn).not.toHaveBeenCalled();
+    expect(client.sendState({ view: "groups", redirect: "/evil" })).toBe(false);
+    expect(client.sendState({ view: "groups", q: "x".repeat(257) })).toBe(false);
     expect(states()).toHaveLength(1);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0][0])).toContain("at most 256 characters");
 
     client.dispose();
-    client.sendState({ view: "zones" });
+    expect(client.sendState({ view: "zones" })).toBe(false);
     expect(states()).toHaveLength(1);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
   });
 
   it("validPageState is the contract's rules, whole or nothing", () => {

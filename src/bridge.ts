@@ -219,6 +219,7 @@ export class BridgeClient {
   private sequence = 0;
   private disposed = false;
   private initialized = false;
+  private refusedStateWarned = false;
   private readyAttempts = 0;
   private readyTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -290,12 +291,25 @@ export class BridgeClient {
    * answer: a host that keeps page state replaces its query with this, and
    * one that does not ignores the message. Nothing is sent before init (the
    * page has not yet seen the address it would overwrite) or after dispose,
-   * and a state that breaks the rules is not sent at all.
+   * and a state that breaks the rules is not sent at all. Returns whether the
+   * state was sent, so a page can clamp a state (a long search) and retry;
+   * the first refused state also warns once in the console, because the
+   * address then silently keeps the previous state.
    */
-  sendState(state: PageState): void {
-    if (this.disposed || !this.initialized) return;
+  sendState(state: PageState): boolean {
+    if (this.disposed || !this.initialized) return false;
     const valid = validPageState(state);
-    if (valid) this.post({ type: "lattice.plugin.state", nonce: this.nonce, state: valid });
+    if (!valid) {
+      if (!this.refusedStateWarned) {
+        this.refusedStateWarned = true;
+        console.warn(
+          `The plugin's page state was not sent to the console address, so a reload or a copied link keeps the previous state. It must have at most ${PAGE_STATE_MAX_KEYS} keys matching ${PAGE_STATE_KEY_PATTERN.source}, none of the console's own keys, and string values of at most ${PAGE_STATE_MAX_VALUE_LENGTH} characters. Later refusals are not reported.`,
+        );
+      }
+      return false;
+    }
+    this.post({ type: "lattice.plugin.state", nonce: this.nonce, state: valid });
+    return true;
   }
 
   resize(height: number): void {

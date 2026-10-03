@@ -71,7 +71,9 @@ the same rules, exported as `validPageState` and the `PAGE_STATE_*` constants: a
 keys, keys matching `^[a-z][a-z0-9_]{0,23}$`, string values of at most 256 characters, and
 the console's sign-in, SSO and MFA keys never cross. A state that breaks a rule is not sent
 at all, nothing is sent before init, and a reserved key that arrives in init is dropped on
-its own.
+its own. `sendState` returns whether it sent the state, and the first state it refuses for
+breaking a rule also warns once in the console, so a page that builds an oversize state (a
+long search) can clamp it instead of losing its address without a trace.
 
 Errors are typed: `BridgeError` is the base, with `BridgeRemoteError` (the host refused or
 the backend failed, carries an optional `code`), `BridgeCancelledError`,
