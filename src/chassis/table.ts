@@ -364,16 +364,21 @@ export const PcSelectCell = defineComponent({
   },
   emits: { change: (_checked: boolean) => true },
   setup(props, { emit }) {
+    // The box sits in a label that fills the cell, so a tap beside the 16px
+    // box selects the row instead of landing on the row and opening it. A
+    // row click handler should still leave clicks inside `.pc-select` alone.
     return () =>
       h(props.header ? "th" : "td", { class: "pc-select", scope: props.header ? "col" : undefined, "data-stack": "actions" }, [
-        h("input", {
-          type: "checkbox",
-          checked: props.checked,
-          indeterminate: props.indeterminate,
-          disabled: props.disabled,
-          "aria-label": props.label,
-          onChange: (event: Event) => emit("change", (event.target as HTMLInputElement).checked),
-        }),
+        h("label", { class: "pc-select-hit" }, [
+          h("input", {
+            type: "checkbox",
+            checked: props.checked,
+            indeterminate: props.indeterminate,
+            disabled: props.disabled,
+            "aria-label": props.label,
+            onChange: (event: Event) => emit("change", (event.target as HTMLInputElement).checked),
+          }),
+        ]),
       ]);
   },
 });
@@ -395,9 +400,9 @@ export const PcPagination = defineComponent({
   setup(props, { emit }) {
     return () =>
       h("footer", { class: "pc-pagination", "aria-label": props.label }, [
-        h("span", `${props.noun} ${props.from} to ${props.to} of ${props.total}${props.note ? `, ${props.note}` : ""}`),
+        h("span", { class: "pc-pagination-range" }, `${props.noun} ${props.from} to ${props.to} of ${props.total}${props.note ? `, ${props.note}` : ""}`),
         h(PcButton, { compact: true, disabled: props.page <= 1, onClick: () => emit("update:page", props.page - 1) }, () => "Previous"),
-        h("span", `Page ${props.page} of ${props.pages}`),
+        h("span", { class: "pc-pagination-page" }, `Page ${props.page} of ${props.pages}`),
         h(PcButton, { compact: true, disabled: props.page >= props.pages, onClick: () => emit("update:page", props.page + 1) }, () => "Next"),
       ]);
   },

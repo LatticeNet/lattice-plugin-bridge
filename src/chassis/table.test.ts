@@ -7,7 +7,7 @@ import { mount } from "@vue/test-utils";
 import { defineComponent, h, nextTick, ref } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { PcActionsCell, PcGroupRow, PcNameCell, PcRow, PcRowToggle, PcTable, PcTd, PcTh } from "./table";
+import { PcActionsCell, PcGroupRow, PcNameCell, PcPagination, PcRow, PcRowToggle, PcSelectCell, PcTable, PcTd, PcTh } from "./table";
 import { PcLensTab, PcLensTabs } from "./toolbar";
 import { useMediaQuery } from "./queryState";
 import { useExpandSet } from "./expandSet";
@@ -245,6 +245,19 @@ describe("scroll wrap: the header pins to the document unless the table is wider
     expect(rule(".pc-sr-only")).toMatch(/position:\s*absolute/);
   });
 
+  it("gives the selection box the whole cell, and keeps the select-all head pinned", () => {
+    expect(rule(".pc-table td.pc-select")).toMatch(/position:\s*relative/);
+    expect(rule(".pc-select-hit")).toMatch(/inset:\s*0/);
+    // A position on the head cell would beat `.pc-table th { position: sticky }`
+    // and let select-all ride off with the rows while the other heads pin.
+    expect(rule(".pc-table td.pc-select, .pc-table th.pc-select")).not.toMatch(/position:/);
+    expect(rule(".pc-table th")).toMatch(/position:\s*sticky/);
+    // The touch sizes come last, after the stacked form's 32px label.
+    const stackedLabel = css.indexOf('.pc-table[data-stacked="true"] .pc-select-hit { position: static');
+    expect(stackedLabel).toBeGreaterThan(-1);
+    expect(css.lastIndexOf("@media (pointer: coarse)")).toBeGreaterThan(stackedLabel);
+  });
+
   it("marks the wrap as sideways-scrolling only while the table is wider than it", async () => {
     let callback: ResizeObserverCallback | undefined;
     const observed: Element[] = [];
@@ -297,5 +310,26 @@ describe("scroll wrap: the header pins to the document unless the table is wider
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("selection cell and pagination", () => {
+  it("wraps the box in a label, so a tap beside it toggles the row and not the row's open handler", async () => {
+    const wrapper = mount(PcSelectCell, { props: { checked: false, label: "Select edge-hkg-1" }, attachTo: document.body });
+    try {
+      const label = wrapper.find("label.pc-select-hit");
+      expect(label.exists()).toBe(true);
+      expect(label.find("input[type='checkbox']").attributes("aria-label")).toBe("Select edge-hkg-1");
+      await label.trigger("click");
+      expect(wrapper.emitted("change")).toEqual([[true]]);
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
+  it("names the range and the page, so a plugin targets a class rather than a child position", () => {
+    const wrapper = mount(PcPagination, { props: { label: "Files pages", noun: "Files", from: 51, to: 100, total: 120, page: 2, pages: 3 } });
+    expect(wrapper.find(".pc-pagination > .pc-pagination-range").text()).toBe("Files 51 to 100 of 120");
+    expect(wrapper.find(".pc-pagination > .pc-pagination-page").text()).toBe("Page 2 of 3");
   });
 });

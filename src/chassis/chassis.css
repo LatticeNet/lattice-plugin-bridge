@@ -348,9 +348,14 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
 .pc-table .pc-bank-row > td.pc-actions { background-color: var(--pc-bank-surface); }
 .pc-row-actions { display: inline-flex; align-items: center; justify-content: flex-end; gap: var(--space-1); }
 .pc-table td.pc-select, .pc-table th.pc-select { width: 40px; padding-right: 0; }
+/* The label is the cell's whole box: a tap anywhere in it toggles the box.
+   The body cell becomes its containing block; the head cell already is one,
+   being sticky, and must stay sticky so select-all pins with the header. */
+.pc-table td.pc-select { position: relative; }
+.pc-select-hit { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0; cursor: pointer; }
 .pc-table .pc-select input { width: 16px; height: 16px; margin: 0; vertical-align: middle; accent-color: var(--primary); }
 .pc-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-top: 1px solid var(--border); color: var(--muted-foreground); font-size: var(--pc-text-xs); font-variant-numeric: tabular-nums; }
-.pc-pagination > span:first-child { margin-right: auto; }
+.pc-pagination-range { margin-right: auto; }
 
 /* ── 4.7 chips ──────────────────────────────────────────────────────────── */
 .pc-kind { display: inline-flex; align-items: center; gap: var(--space-1); border: 1px solid var(--border); border-radius: 999px; padding: 2px 7px; color: var(--muted-foreground); background: var(--card); font-size: var(--pc-text-badge); font-weight: 650; white-space: nowrap; }
@@ -478,6 +483,9 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
   .pc-search { max-width: none; }
   .pc-toolbar > .pc-button { width: 100%; }
   .pc-toolbar-secondary > .pc-button { flex: 1 1 0; }
+  /* The range takes the first line; Previous, the page and Next share the
+     second, instead of Next wrapping onto a line of its own. */
+  .pc-pagination-range { flex-basis: 100%; }
   .pc-overlay { padding: var(--space-2); }
   .pc-overlay[data-kind="panel"] { padding: 0; }
   .pc-modal > header, .pc-modal > footer, .pc-modal-body, .pc-side-panel > header, .pc-side-panel > footer { padding: var(--space-3); }
@@ -504,6 +512,9 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
 .pc-table[data-stacked="true"] tr::after { content: ""; order: 2; flex: 0 0 100%; height: 0; }
 .pc-table[data-stacked="true"] td.pc-name .pc-narrow-status { display: none; }
 .pc-table[data-stacked="true"] td[data-stack="actions"] { order: 1; flex: 0 0 auto; margin-left: auto; position: static; background: transparent; }
+/* A stacked cell is sized by its content, so the selection label is a 32px
+   square in the flow rather than an overlay on a box with no size. */
+.pc-table[data-stacked="true"] .pc-select-hit { position: static; width: 32px; height: 32px; }
 .pc-table[data-stacked="true"] td[data-stack="summary"] { order: 2; flex: 0 0 100%; }
 /* The verdict cells share line 3: each is its own td, so the first one after
    the full-width name line starts the line and the rest sit beside it. */
@@ -524,4 +535,6 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
    the same specificity. */
 @media (pointer: coarse) {
   .pc-lens-tabs[data-variant="layer"] > .pc-lens-tab { min-height: 44px; }
+  .pc-table td.pc-select, .pc-table th.pc-select { width: 44px; }
+  .pc-table[data-stacked="true"] .pc-select-hit { width: 44px; height: 44px; }
 }
