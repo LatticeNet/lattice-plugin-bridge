@@ -324,6 +324,15 @@ describe("side panel beside the collection", () => {
     wrapper.unmount();
   });
 
+  it("a panel rendered open from the address is beside the rows in its first render", () => {
+    stubFrameWidth(1440);
+    const wrapper = mount(PcSidePanel, { props: { open: true, title: "Record a" }, attachTo: document.body });
+    // No nextTick: this is the first render, before any post-mount update.
+    expect(wrapper.find(".pc-side-panel").attributes("role")).toBe("complementary");
+    expect(wrapper.find(".pc-overlay").attributes("data-modal")).toBe("false");
+    wrapper.unmount();
+  });
+
   it("below 768px stays a modal dialog with a scrim and keeps Tab inside", async () => {
     stubFrameWidth(375);
     const wrapper = mount(Page, { attachTo: document.body });

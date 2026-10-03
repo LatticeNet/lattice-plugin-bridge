@@ -207,7 +207,7 @@ describe("stacked form under 480px", () => {
     vi.unstubAllGlobals();
   });
 
-  it("useMediaQuery is undefined until the client evaluates it", () => {
+  it("useMediaQuery is undefined without a window to ask", () => {
     const Probe = defineComponent({
       setup() {
         const narrow = useMediaQuery("(max-width: 480px)", undefined);
@@ -215,6 +215,23 @@ describe("stacked form under 480px", () => {
       },
     });
     expect(mount(Probe).text()).toBe("undefined");
+  });
+
+  it("useMediaQuery holds the frame's answer in the first render, so nothing flips after mount", () => {
+    const answers: (boolean | undefined)[] = [];
+    const win = { matchMedia: (query: string) => ({ matches: true, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }) } as unknown as Window & typeof globalThis;
+    const Probe = defineComponent({
+      setup() {
+        const narrow = useMediaQuery("(max-width: 480px)", win);
+        return () => {
+          answers.push(narrow.value);
+          return h("i", String(narrow.value));
+        };
+      },
+    });
+    const wrapper = mount(Probe);
+    expect(answers[0]).toBe(true);
+    expect(wrapper.text()).toBe("true");
   });
 });
 

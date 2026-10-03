@@ -37,21 +37,27 @@ export function useDocumentQueryState(win: QueryWindow | undefined = typeof wind
 }
 
 /**
- * A boolean ref that follows a media query. `undefined` until the first
- * evaluation on the client, so a server render and the first client frame
- * agree. Used by PcTable for the 480px stacked form.
+ * A boolean ref that follows a media query. Used by PcTable for the 480px
+ * stacked form and by PcSidePanel for the 768px beside-the-rows form.
+ *
+ * On the client it holds the answer from the first render, so those parts
+ * draw in their final form in the first frame: a panel restored from the
+ * address opens beside the rows instead of opening modal and flipping after
+ * mount. `undefined` where there is no window or no matchMedia (a server
+ * render, a test without it). Plugin frames are client-rendered; a page that
+ * hydrates a server render would see the first client frame differ from it.
  */
 export function useMediaQuery(query: string, win: (Window & typeof globalThis) | undefined = typeof window === "undefined" ? undefined : window): Ref<boolean | undefined> {
-  const matches = ref<boolean | undefined>(undefined);
-  let list: MediaQueryList | undefined;
-  const update = (event?: { matches: boolean }): void => {
-    matches.value = event ? event.matches : (list?.matches ?? undefined);
+  const list: MediaQueryList | undefined = win && typeof win.matchMedia === "function" ? win.matchMedia(query) : undefined;
+  const matches = ref<boolean | undefined>(list?.matches);
+  const update = (event: { matches: boolean }): void => {
+    matches.value = event.matches;
   };
   onMounted(() => {
-    if (!win || typeof win.matchMedia !== "function") return;
-    list = win.matchMedia(query);
+    if (!list) return;
     list.addEventListener("change", update);
-    update();
+    // The frame may have been resized between setup and mount.
+    matches.value = list.matches;
   });
   onBeforeUnmount(() => list?.removeEventListener("change", update));
   return matches;

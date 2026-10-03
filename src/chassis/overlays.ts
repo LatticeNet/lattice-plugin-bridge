@@ -164,9 +164,9 @@ export const SIDE_PANEL_BESIDE_QUERY = "(min-width: 768px)";
  * out of. Below 768px it is a modal, full-height sheet with a scrim, Tab kept
  * inside. In both, Escape (useOverlayEscape) and the close button close it,
  * and focus returns to the opener; beside the collection, Escape typed in a
- * page field (the rows' search) stays with that field. Until the client has
- * measured the frame (a server render, the first client pass, a test without
- * matchMedia) it is modal.
+ * page field (the rows' search) stays with that field. The frame is measured
+ * in the first render, so a panel restored from the address opens in its
+ * final form. Without matchMedia (a server render, a test) it is modal.
  */
 export const PcSidePanel = defineComponent({
   name: "PcSidePanel",
