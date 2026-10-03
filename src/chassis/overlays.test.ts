@@ -249,7 +249,7 @@ describe("side panel beside the collection", () => {
     wrapper.unmount();
   });
 
-  it("from 768px Escape typed in a page field stays with the field, and one a control used is left alone", async () => {
+  it("from 768px Escape typed in a page field or an open menu stays there, and one a control used is left alone", async () => {
     stubFrameWidth(1440);
     const Rows = defineComponent({
       setup() {
@@ -258,6 +258,7 @@ describe("side panel beside the collection", () => {
         return () => [
           h("input", { id: "search", type: "search" }),
           h("input", { id: "pick", type: "checkbox" }),
+          h("div", { role: "menu" }, [h("button", { id: "item", role: "menuitem" }, "Rename")]),
           h("button", {
             id: "menu",
             onKeydown: (event: KeyboardEvent) => {
@@ -279,6 +280,8 @@ describe("side panel beside the collection", () => {
     await press("#search");
     expect(wrapper.find(".pc-side-panel").exists()).toBe(true);
     await press("#menu");
+    expect(wrapper.find(".pc-side-panel").exists()).toBe(true);
+    await press("#item");
     expect(wrapper.find(".pc-side-panel").exists()).toBe(true);
     // A checkbox is not a text field: Escape there still steps back.
     await press("#pick");

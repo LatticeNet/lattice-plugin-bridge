@@ -52,20 +52,27 @@ function isTextEntry(target: EventTarget | null): target is Element {
   return !["button", "checkbox", "color", "file", "hidden", "image", "radio", "range", "reset", "submit"].includes(type);
 }
 
+/** An open menu (role="menu") closes on Escape before anything under it. */
+function isInMenu(target: EventTarget | null): target is Element {
+  return typeof Element !== "undefined" && target instanceof Element && target.closest('[role="menu"]') !== null;
+}
+
 /**
  * True when this Escape belongs to the page rather than to the top overlay:
  * the overlay sits beside the page (a non-modal side panel), and either a
  * control already used the key (preventDefault) or it came from a text field
- * outside the panel. An operator clearing the rows' search keeps the record
- * open. From a row, from <body> or from inside the panel, Escape still closes
- * it, and a modal overlay always takes the key: its page is behind a scrim.
+ * or an open menu outside the panel. An operator clearing the rows' search
+ * keeps the record open, and a row menu opened after the panel closes before
+ * it. From a row, from <body> or from inside the panel, Escape still closes
+ * the panel, and a modal overlay always takes the key: its page is behind a
+ * scrim.
  */
 export function escapeBelongsToPage(event: KeyboardEvent): boolean {
   const panel = stack[stack.length - 1]?.beside?.();
   if (!panel) return false;
   if (event.defaultPrevented) return true;
   const target = event.target;
-  return isTextEntry(target) && !panel.contains(target);
+  return (isTextEntry(target) || isInMenu(target)) && !panel.contains(target as Element);
 }
 
 /**
