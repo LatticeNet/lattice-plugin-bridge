@@ -283,7 +283,12 @@
    measures the table against the wrap and sets data-overflow="x" only while
    the columns are wider than the frame; then the wrap scrolls sideways and the
    name and actions columns pin to its edges. */
-.pc-table-wrap { width: 100%; overflow-x: clip; overflow-y: visible; }
+/* `position: relative` makes the wrap the containing block for anything
+   absolutely positioned in a cell: the screen-reader text after a value
+   (.pc-sr-only) and the stacked form's hidden head. Without it that text was
+   placed against the document, outside the wrap's clip and its sideways
+   scroll, and a 375 frame grew to 886px. */
+.pc-table-wrap { position: relative; width: 100%; overflow-x: clip; overflow-y: visible; }
 .pc-table-wrap[data-overflow="x"] { overflow-x: auto; }
 .pc-table { width: 100%; min-width: var(--pc-table-min, 720px); border-collapse: separate; border-spacing: 0; font-size: var(--text-body); }
 .pc-table th { position: sticky; top: 0; z-index: 2; height: 32px; padding: 0 var(--space-3); color: var(--muted-foreground); background: var(--pc-head-surface); box-shadow: inset 0 -1px 0 var(--border); font-size: var(--pc-text-label); font-weight: 600; letter-spacing: 0.04em; text-align: left; text-transform: uppercase; white-space: nowrap; }

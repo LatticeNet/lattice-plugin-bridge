@@ -236,6 +236,15 @@ describe("scroll wrap: the header pins to the document unless the table is wider
     expect(rule('.pc-table-wrap[data-overflow="x"]')).toMatch(/overflow-x:\s*auto/);
   });
 
+  it("is the containing block for screen-reader text in a cell, so it cannot widen the page", () => {
+    // .pc-sr-only is absolutely positioned. Against the document it sat at
+    // its static place beyond the wrap's clip and widened a 375 frame to
+    // 886px (NetGuard's port cells). The rendered width is measured in the
+    // plugins' Gate 2 drives; this pins the rule that makes it hold.
+    expect(rule(".pc-table-wrap")).toMatch(/position:\s*relative/);
+    expect(rule(".pc-sr-only")).toMatch(/position:\s*absolute/);
+  });
+
   it("marks the wrap as sideways-scrolling only while the table is wider than it", async () => {
     let callback: ResizeObserverCallback | undefined;
     const observed: Element[] = [];
