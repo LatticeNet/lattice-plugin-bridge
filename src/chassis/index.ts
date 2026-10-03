@@ -12,8 +12,8 @@
 export { PcWorkspace, PcPageHeader, PcProofLine, PcNotice, PcStatStrip, PcStatCard } from "./page.js";
 export type { NoticeTone, StatTone } from "./page.js";
 
-export { PcToolbar, PcLensTabs, PcLensTab, PcSearchField, PcButton, PcIconButton } from "./toolbar.js";
-export type { ButtonVariant } from "./toolbar.js";
+export { PcToolbar, PcLensTabs, PcLensTab, PcSearchField, PcButton, PcIconButton, revealSelectedTab } from "./toolbar.js";
+export type { ButtonVariant, LensVariant, TabRow } from "./toolbar.js";
 
 export {
   PcPanel,
@@ -41,7 +41,7 @@ export type { StateTone, CountTone } from "./chips.js";
 export { PcSkeleton, PcEmptyState } from "./states.js";
 export type { EmptyKind } from "./states.js";
 
-export { PcModal, PcSidePanel, PcConfirmDialog, PcBatchBar } from "./overlays.js";
+export { PcModal, PcSidePanel, PcConfirmDialog, PcBatchBar, SIDE_PANEL_BESIDE_QUERY, SIDE_PANEL_OUTPUT_BESIDE_QUERY } from "./overlays.js";
 export type { ModalSize, PanelSize } from "./overlays.js";
 
 export { useExpandSet } from "./expandSet.js";
@@ -53,6 +53,7 @@ export {
   useOverlayEscape,
   registerOverlay,
   closeTopOverlay,
+  escapeBelongsToPage,
   overlayDepth,
   resetOverlayStack,
   trapDialogTab,

@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { mount } from "@vue/test-utils";
 import { defineComponent, h, nextTick, ref } from "vue";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { PcBatchBar, PcConfirmDialog, PcModal, PcSidePanel } from "./overlays";
+import { PcBatchBar, PcConfirmDialog, PcModal, PcSidePanel, SIDE_PANEL_BESIDE_QUERY, SIDE_PANEL_OUTPUT_BESIDE_QUERY } from "./overlays";
 import { closeTopOverlay, overlayDepth, resetOverlayStack, useOverlayEscape } from "./overlayStack";
 import { PcNotice, PcPageHeader, PcProofLine, PcStatCard, PcStatStrip } from "./page";
 import { PcEmptyState, PcSkeleton } from "./states";
@@ -125,6 +129,290 @@ describe("overlay stack", () => {
     expect(cleared.value).toBe(1);
     await wrapper.setProps({ count: 0 });
     expect(wrapper.find(".pc-batch-bar").exists()).toBe(false);
+  });
+});
+
+/** A frame of `width` px as matchMedia answers min-width queries, resizable. */
+function stubFrameWidth(width: number) {
+  const listeners = new Map<(event: { matches: boolean }) => void, string>();
+  let current = width;
+  const answer = (query: string) => {
+    const min = /min-width:\s*(\d+)px/.exec(query);
+    return min ? current >= Number(min[1]) : false;
+  };
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    get matches() {
+      return answer(query);
+    },
+    media: query,
+    addEventListener: (_: string, listener: (event: { matches: boolean }) => void) => listeners.set(listener, query),
+    removeEventListener: (_: string, listener: (event: { matches: boolean }) => void) => listeners.delete(listener),
+  }));
+  return {
+    resize(next: number) {
+      current = next;
+      for (const [listener, query] of listeners) listener({ matches: answer(query) });
+    },
+  };
+}
+
+describe("side panel beside the collection", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** A row that opens the panel, a second row, and the panel, as a plugin page builds them. */
+  const Page = defineComponent({
+    setup() {
+      useOverlayEscape();
+      const open = ref("");
+      return () => [
+        h("button", { id: "row-a", onClick: () => (open.value = "a") }, "Row A"),
+        h("button", { id: "row-b", onClick: () => (open.value = "b") }, "Row B"),
+        h(PcSidePanel, { open: open.value !== "", title: `Record ${open.value}`, onClose: () => (open.value = "") }, () => [
+          h("p", `record ${open.value}`),
+          h("button", { id: "edit" }, "Edit"),
+        ]),
+      ];
+    },
+  });
+
+  it("from 768px is a labelled complementary landmark with no scrim and no aria-modal", async () => {
+    stubFrameWidth(1440);
+    const wrapper = mount(Page, { attachTo: document.body });
+    await nextTick();
+    const opener = wrapper.find("#row-a");
+    (opener.element as HTMLElement).focus();
+    await opener.trigger("click");
+    await nextTick();
+    const panel = wrapper.find(".pc-side-panel");
+    expect(panel.attributes("role")).toBe("complementary");
+    expect(panel.attributes("aria-modal")).toBeUndefined();
+    expect(document.getElementById(panel.attributes("aria-labelledby")!)?.textContent).toBe("Record a");
+    expect(wrapper.find(".pc-overlay").attributes("data-modal")).toBe("false");
+    // Opening still moves focus to the panel, so a keyboard user lands in it.
+    expect(document.activeElement).toBe(panel.element);
+    wrapper.unmount();
+  });
+
+  it("from 768px lets Tab leave the panel and keeps the rows live", async () => {
+    stubFrameWidth(1024);
+    const wrapper = mount(Page, { attachTo: document.body });
+    await nextTick();
+    await wrapper.find("#row-a").trigger("click");
+    await nextTick();
+    const edit = wrapper.find("#edit");
+    (edit.element as HTMLElement).focus();
+    const tab = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+    edit.element.dispatchEvent(tab);
+    // Not wrapped back to the close button: the browser moves on to the page.
+    expect(tab.defaultPrevented).toBe(false);
+    // A click on the wrapper is not a scrim click; another row swaps the record.
+    await wrapper.find(".pc-overlay").trigger("click");
+    expect(wrapper.find(".pc-side-panel").exists()).toBe(true);
+    await wrapper.find("#row-b").trigger("click");
+    await nextTick();
+    expect(wrapper.find(".pc-side-panel h2").text()).toBe("Record b");
+    wrapper.unmount();
+  });
+
+  it("from 768px Escape closes it and returns focus to the opener when focus was in the panel", async () => {
+    stubFrameWidth(1440);
+    const wrapper = mount(Page, { attachTo: document.body });
+    await nextTick();
+    const opener = wrapper.find("#row-a").element as HTMLElement;
+    opener.focus();
+    await wrapper.find("#row-a").trigger("click");
+    await nextTick();
+    (wrapper.find("#edit").element as HTMLElement).focus();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await nextTick();
+    await nextTick();
+    expect(wrapper.find(".pc-side-panel").exists()).toBe(false);
+    expect(document.activeElement).toBe(opener);
+    wrapper.unmount();
+  });
+
+  it("from 768px leaves focus where the operator put it when they close the panel from the page", async () => {
+    stubFrameWidth(1440);
+    const wrapper = mount(Page, { attachTo: document.body });
+    await nextTick();
+    const opener = wrapper.find("#row-a").element as HTMLElement;
+    opener.focus();
+    await wrapper.find("#row-a").trigger("click");
+    await nextTick();
+    const elsewhere = wrapper.find("#row-b").element as HTMLElement;
+    elsewhere.focus();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await nextTick();
+    await nextTick();
+    expect(wrapper.find(".pc-side-panel").exists()).toBe(false);
+    expect(document.activeElement).toBe(elsewhere);
+    wrapper.unmount();
+  });
+
+  it("from 768px Escape typed in a page field or an open menu stays there, and one a control used is left alone", async () => {
+    stubFrameWidth(1440);
+    const Rows = defineComponent({
+      setup() {
+        useOverlayEscape();
+        const open = ref("a");
+        return () => [
+          h("input", { id: "search", type: "search" }),
+          h("input", { id: "pick", type: "checkbox" }),
+          h("div", { role: "menu" }, [h("button", { id: "item", role: "menuitem" }, "Rename")]),
+          h("button", {
+            id: "menu",
+            onKeydown: (event: KeyboardEvent) => {
+              if (event.key === "Escape") event.preventDefault();
+            },
+          }, "Menu"),
+          h(PcSidePanel, { open: open.value !== "", title: "Record a", onClose: () => (open.value = "") }, () => h("input", { id: "field" })),
+        ];
+      },
+    });
+    const wrapper = mount(Rows, { attachTo: document.body });
+    await nextTick();
+    const press = async (selector: string) => {
+      const target = wrapper.find(selector).element as HTMLElement;
+      target.focus();
+      target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+      await nextTick();
+    };
+    await press("#search");
+    expect(wrapper.find(".pc-side-panel").exists()).toBe(true);
+    await press("#menu");
+    expect(wrapper.find(".pc-side-panel").exists()).toBe(true);
+    await press("#item");
+    expect(wrapper.find(".pc-side-panel").exists()).toBe(true);
+    // A checkbox is not a text field: Escape there still steps back.
+    await press("#pick");
+    expect(wrapper.find(".pc-side-panel").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("from 768px Escape in a field inside the panel still closes it", async () => {
+    stubFrameWidth(1440);
+    const open = ref(true);
+    const wrapper = mount(defineComponent({
+      setup() {
+        useOverlayEscape();
+        return () => h(PcSidePanel, { open: open.value, title: "Record a", onClose: () => (open.value = false) }, () => h("input", { id: "field" }));
+      },
+    }), { attachTo: document.body });
+    await nextTick();
+    const field = wrapper.find("#field").element as HTMLElement;
+    field.focus();
+    field.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    await nextTick();
+    expect(open.value).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("below 768px the modal sheet takes Escape even from a page field", async () => {
+    stubFrameWidth(375);
+    const open = ref(true);
+    const wrapper = mount(defineComponent({
+      setup() {
+        useOverlayEscape();
+        return () => [
+          h("input", { id: "search", type: "search" }),
+          h(PcSidePanel, { open: open.value, title: "Record a", onClose: () => (open.value = false) }, () => h("p", "record")),
+        ];
+      },
+    }), { attachTo: document.body });
+    await nextTick();
+    const search = wrapper.find("#search").element as HTMLElement;
+    search.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    await nextTick();
+    expect(open.value).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("a panel rendered open from the address is beside the rows in its first render", () => {
+    stubFrameWidth(1440);
+    const wrapper = mount(PcSidePanel, { props: { open: true, title: "Record a" }, attachTo: document.body });
+    // No nextTick: this is the first render, before any post-mount update.
+    expect(wrapper.find(".pc-side-panel").attributes("role")).toBe("complementary");
+    expect(wrapper.find(".pc-overlay").attributes("data-modal")).toBe("false");
+    wrapper.unmount();
+  });
+
+  it("below 768px stays a modal dialog with a scrim and keeps Tab inside", async () => {
+    stubFrameWidth(375);
+    const wrapper = mount(Page, { attachTo: document.body });
+    await nextTick();
+    await wrapper.find("#row-a").trigger("click");
+    await nextTick();
+    const panel = wrapper.find(".pc-side-panel");
+    expect(panel.attributes("role")).toBe("dialog");
+    expect(panel.attributes("aria-modal")).toBe("true");
+    expect(wrapper.find(".pc-overlay").attributes("data-modal")).toBeUndefined();
+    const edit = wrapper.find("#edit");
+    (edit.element as HTMLElement).focus();
+    const tab = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+    edit.element.dispatchEvent(tab);
+    expect(tab.defaultPrevented).toBe(true);
+    expect(document.activeElement?.getAttribute("aria-label")).toBe("Close");
+    await wrapper.find(".pc-overlay").trigger("click");
+    expect(wrapper.find(".pc-side-panel").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("follows the frame across 768px while open", async () => {
+    const frame = stubFrameWidth(1440);
+    const wrapper = mount(Page, { attachTo: document.body });
+    await nextTick();
+    await wrapper.find("#row-a").trigger("click");
+    await nextTick();
+    expect(wrapper.find(".pc-side-panel").attributes("role")).toBe("complementary");
+    frame.resize(700);
+    await nextTick();
+    expect(wrapper.find(".pc-side-panel").attributes("role")).toBe("dialog");
+    expect(wrapper.find(".pc-side-panel").attributes("aria-modal")).toBe("true");
+    wrapper.unmount();
+  });
+
+  it("the size picks the threshold: a record panel is beside the rows at 1024px, an output panel only from 1280px", async () => {
+    const frame = stubFrameWidth(1024);
+    const panel = (size: "record" | "output") => mount(PcSidePanel, { props: { open: true, title: `A ${size}`, size }, attachTo: document.body });
+    const record = panel("record");
+    const output = panel("output");
+    expect(record.find(".pc-overlay").attributes("data-modal")).toBe("false");
+    expect(record.find(".pc-side-panel").attributes("role")).toBe("complementary");
+    // At 1024px a 960px document would cover all but 64px of rows: modal instead.
+    expect(output.find(".pc-overlay").attributes("data-modal")).toBeUndefined();
+    expect(output.find(".pc-side-panel").attributes("role")).toBe("dialog");
+    expect(output.find(".pc-side-panel").attributes("aria-modal")).toBe("true");
+    frame.resize(1280);
+    await nextTick();
+    expect(output.find(".pc-overlay").attributes("data-modal")).toBe("false");
+    expect(output.find(".pc-side-panel").attributes("role")).toBe("complementary");
+    frame.resize(767);
+    await nextTick();
+    expect(record.find(".pc-overlay").attributes("data-modal")).toBeUndefined();
+    expect(output.find(".pc-overlay").attributes("data-modal")).toBeUndefined();
+    record.unmount();
+    output.unmount();
+  });
+
+  it("beside the rows the panel leaves them 320px, and each size's threshold fits its width plus those 320px", () => {
+    const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "chassis.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const rule = (selector: string) => css.match(new RegExp(`(?:^|\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+    const reserved = Number(/max-width:\s*calc\(100% - (\d+)px\)/.exec(rule('.pc-overlay[data-modal="false"] > .pc-side-panel'))?.[1]);
+    expect(reserved).toBe(320);
+    const width = (selector: string) => Number(/width:\s*min\((\d+)px,\s*100%\)/.exec(rule(selector))?.[1]);
+    const threshold = (query: string) => Number(/min-width:\s*(\d+)px/.exec(query)?.[1]);
+    expect(width(".pc-side-panel") + reserved).toBeLessThanOrEqual(threshold(SIDE_PANEL_BESIDE_QUERY));
+    expect(width('.pc-side-panel[data-size="output"]') + reserved).toBe(threshold(SIDE_PANEL_OUTPUT_BESIDE_QUERY));
+  });
+
+  it("the sheet drops the scrim and passes pointer events through the wrapper, not the panel", () => {
+    const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "chassis.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const rule = (selector: string) => css.match(new RegExp(`(?:^|\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+    expect(rule('.pc-overlay[data-modal="false"]')).toMatch(/background:\s*transparent/);
+    expect(rule('.pc-overlay[data-modal="false"]')).toMatch(/pointer-events:\s*none/);
+    expect(rule('.pc-overlay[data-modal="false"] > .pc-side-panel')).toMatch(/pointer-events:\s*auto/);
+    // After the panel rule that paints the scrim, so it wins at equal specificity.
+    expect(css.indexOf('.pc-overlay[data-modal="false"]')).toBeGreaterThan(css.indexOf('.pc-overlay[data-kind="panel"]'));
   });
 });
 

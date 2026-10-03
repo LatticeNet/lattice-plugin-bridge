@@ -7,7 +7,7 @@ import { mount } from "@vue/test-utils";
 import { defineComponent, h, nextTick, ref } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { PcActionsCell, PcGroupRow, PcNameCell, PcRow, PcRowToggle, PcTable, PcTd, PcTh } from "./table";
+import { PcActionsCell, PcGroupRow, PcNameCell, PcPagination, PcRow, PcRowToggle, PcSelectCell, PcTable, PcTd, PcTh } from "./table";
 import { PcLensTab, PcLensTabs } from "./toolbar";
 import { useMediaQuery } from "./queryState";
 import { useExpandSet } from "./expandSet";
@@ -207,7 +207,7 @@ describe("stacked form under 480px", () => {
     vi.unstubAllGlobals();
   });
 
-  it("useMediaQuery is undefined until the client evaluates it", () => {
+  it("useMediaQuery is undefined without a window to ask", () => {
     const Probe = defineComponent({
       setup() {
         const narrow = useMediaQuery("(max-width: 480px)", undefined);
@@ -215,6 +215,23 @@ describe("stacked form under 480px", () => {
       },
     });
     expect(mount(Probe).text()).toBe("undefined");
+  });
+
+  it("useMediaQuery holds the frame's answer in the first render, so nothing flips after mount", () => {
+    const answers: (boolean | undefined)[] = [];
+    const win = { matchMedia: (query: string) => ({ matches: true, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }) } as unknown as Window & typeof globalThis;
+    const Probe = defineComponent({
+      setup() {
+        const narrow = useMediaQuery("(max-width: 480px)", win);
+        return () => {
+          answers.push(narrow.value);
+          return h("i", String(narrow.value));
+        };
+      },
+    });
+    const wrapper = mount(Probe);
+    expect(answers[0]).toBe(true);
+    expect(wrapper.text()).toBe("true");
   });
 });
 
@@ -234,6 +251,28 @@ describe("scroll wrap: the header pins to the document unless the table is wider
     expect(rule(".pc-table-wrap")).toMatch(/overflow-x:\s*clip/);
     expect(rule(".pc-table-wrap")).not.toMatch(/overflow-x:\s*auto/);
     expect(rule('.pc-table-wrap[data-overflow="x"]')).toMatch(/overflow-x:\s*auto/);
+  });
+
+  it("is the containing block for screen-reader text in a cell, so it cannot widen the page", () => {
+    // .pc-sr-only is absolutely positioned. Against the document it sat at
+    // its static place beyond the wrap's clip and widened a 375 frame to
+    // 886px (NetGuard's port cells). The rendered width is measured in the
+    // plugins' Gate 2 drives; this pins the rule that makes it hold.
+    expect(rule(".pc-table-wrap")).toMatch(/position:\s*relative/);
+    expect(rule(".pc-sr-only")).toMatch(/position:\s*absolute/);
+  });
+
+  it("gives the selection box the whole cell, and keeps the select-all head pinned", () => {
+    expect(rule(".pc-table td.pc-select")).toMatch(/position:\s*relative/);
+    expect(rule(".pc-select-hit")).toMatch(/inset:\s*0/);
+    // A position on the head cell would beat `.pc-table th { position: sticky }`
+    // and let select-all ride off with the rows while the other heads pin.
+    expect(rule(".pc-table td.pc-select, .pc-table th.pc-select")).not.toMatch(/position:/);
+    expect(rule(".pc-table th")).toMatch(/position:\s*sticky/);
+    // The touch sizes come last, after the stacked form's 32px label.
+    const stackedLabel = css.indexOf('.pc-table[data-stacked="true"] .pc-select-hit { position: static');
+    expect(stackedLabel).toBeGreaterThan(-1);
+    expect(css.lastIndexOf("@media (pointer: coarse)")).toBeGreaterThan(stackedLabel);
   });
 
   it("marks the wrap as sideways-scrolling only while the table is wider than it", async () => {
@@ -288,5 +327,26 @@ describe("scroll wrap: the header pins to the document unless the table is wider
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("selection cell and pagination", () => {
+  it("wraps the box in a label, so a tap beside it toggles the row and not the row's open handler", async () => {
+    const wrapper = mount(PcSelectCell, { props: { checked: false, label: "Select edge-hkg-1" }, attachTo: document.body });
+    try {
+      const label = wrapper.find("label.pc-select-hit");
+      expect(label.exists()).toBe(true);
+      expect(label.find("input[type='checkbox']").attributes("aria-label")).toBe("Select edge-hkg-1");
+      await label.trigger("click");
+      expect(wrapper.emitted("change")).toEqual([[true]]);
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
+  it("names the range and the page, so a plugin targets a class rather than a child position", () => {
+    const wrapper = mount(PcPagination, { props: { label: "Files pages", noun: "Files", from: 51, to: 100, total: 120, page: 2, pages: 3 } });
+    expect(wrapper.find(".pc-pagination > .pc-pagination-range").text()).toBe("Files 51 to 100 of 120");
+    expect(wrapper.find(".pc-pagination > .pc-pagination-page").text()).toBe("Page 2 of 3");
   });
 });

@@ -8,6 +8,11 @@ export {
   BridgeTimeoutError,
   BridgeDisposedError,
   BridgeHandshakeError,
+  validPageState,
+  PAGE_STATE_MAX_KEYS,
+  PAGE_STATE_KEY_PATTERN,
+  PAGE_STATE_MAX_VALUE_LENGTH,
+  PAGE_STATE_RESERVED_KEYS,
 } from "./bridge.js";
 
 export type {
@@ -15,4 +20,5 @@ export type {
   CallableInterface,
   HostInit,
   HostTheme,
+  PageState,
 } from "./bridge.js";

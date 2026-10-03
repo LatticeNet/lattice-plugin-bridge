@@ -226,6 +226,24 @@
 .pc-lens-tab:hover { color: var(--foreground); }
 .pc-lens-tab[aria-selected="true"] { color: var(--foreground); background: var(--muted); box-shadow: inset 0 0 0 1px var(--border); }
 .pc-lens-tab:focus-visible { outline-offset: 1px; }
+/* The layer row (PcLensTabs variant="layer", design 23 3.4): a row of its
+   own above the layer's toolbar, an underline row from 620px and a segmented
+   control below, words only. The vpn-core Lines page draws it this way and
+   is the reference. The hairline and the selected underline are inset
+   shadows, not borders: a tab pulled over a border with a negative margin
+   hangs a pixel out of the sideways scroller and makes it scroll up and down
+   by that pixel. The row keeps one line and scrolls sideways when the tabs
+   are wider than the frame; PcLensTabs scrolls the selected tab into view. */
+.pc-lens-tabs[data-variant="layer"] { display: flex; width: 100%; max-width: 100%; flex-wrap: nowrap; align-items: flex-end; gap: var(--space-1); overflow-x: auto; overflow-y: hidden; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: inset 0 -1px 0 var(--border); scrollbar-width: thin; }
+.pc-workspace > .pc-lens-tabs[data-variant="layer"] { margin-bottom: var(--space-4); }
+/* The type is set here again because `.pc-workspace button { font: inherit }`
+   outranks `.pc-lens-tab` and would draw the tabs at body size and weight. */
+.pc-lens-tabs[data-variant="layer"] > .pc-lens-tab { flex: 0 0 auto; min-height: 36px; gap: 6px; margin: 0; padding: var(--space-2) var(--space-3); border-radius: 0; background: transparent; box-shadow: none; font-size: var(--pc-text-sm); font-weight: 600; transition: color var(--pc-dur) var(--pc-ease), box-shadow var(--pc-dur) var(--pc-ease); }
+.pc-lens-tabs[data-variant="layer"] > .pc-lens-tab[aria-selected="true"] { color: var(--foreground); background: transparent; box-shadow: inset 0 -2px 0 var(--primary); }
+.pc-lens-tabs[data-variant="layer"] > .pc-lens-tab:focus-visible { border-radius: var(--radius-sm); outline-offset: -2px; }
+/* The count reads as a quiet tally beside a layer's name, selected or not. */
+.pc-lens-tabs[data-variant="layer"] .pc-count:not([data-tone]) { color: var(--muted-foreground); }
+.pc-lens-tabs[data-variant="layer"] .pc-count { font-size: var(--pc-text-badge); font-weight: 650; }
 .pc-count { display: inline-flex; min-width: 18px; height: 18px; align-items: center; justify-content: center; border-radius: 9px; padding: 0 5px; color: var(--foreground); background: var(--muted); font-size: var(--pc-text-label); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pc-count[data-tone="error"] { color: var(--destructive-foreground); background: var(--destructive); }
 .pc-count[data-tone="warning"] { color: var(--warning-foreground); background: var(--warning); }
@@ -267,7 +285,12 @@
    measures the table against the wrap and sets data-overflow="x" only while
    the columns are wider than the frame; then the wrap scrolls sideways and the
    name and actions columns pin to its edges. */
-.pc-table-wrap { width: 100%; overflow-x: clip; overflow-y: visible; }
+/* `position: relative` makes the wrap the containing block for anything
+   absolutely positioned in a cell: the screen-reader text after a value
+   (.pc-sr-only) and the stacked form's hidden head. Without it that text was
+   placed against the document, outside the wrap's clip and its sideways
+   scroll, and a 375 frame grew to 886px. */
+.pc-table-wrap { position: relative; width: 100%; overflow-x: clip; overflow-y: visible; }
 .pc-table-wrap[data-overflow="x"] { overflow-x: auto; }
 .pc-table { width: 100%; min-width: var(--pc-table-min, 720px); border-collapse: separate; border-spacing: 0; font-size: var(--text-body); }
 .pc-table th { position: sticky; top: 0; z-index: 2; height: 32px; padding: 0 var(--space-3); color: var(--muted-foreground); background: var(--pc-head-surface); box-shadow: inset 0 -1px 0 var(--border); font-size: var(--pc-text-label); font-weight: 600; letter-spacing: 0.04em; text-align: left; text-transform: uppercase; white-space: nowrap; }
@@ -327,9 +350,14 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
 .pc-table .pc-bank-row > td.pc-actions { background-color: var(--pc-bank-surface); }
 .pc-row-actions { display: inline-flex; align-items: center; justify-content: flex-end; gap: var(--space-1); }
 .pc-table td.pc-select, .pc-table th.pc-select { width: 40px; padding-right: 0; }
+/* The label is the cell's whole box: a tap anywhere in it toggles the box.
+   The body cell becomes its containing block; the head cell already is one,
+   being sticky, and must stay sticky so select-all pins with the header. */
+.pc-table td.pc-select { position: relative; }
+.pc-select-hit { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0; cursor: pointer; }
 .pc-table .pc-select input { width: 16px; height: 16px; margin: 0; vertical-align: middle; accent-color: var(--primary); }
 .pc-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-top: 1px solid var(--border); color: var(--muted-foreground); font-size: var(--pc-text-xs); font-variant-numeric: tabular-nums; }
-.pc-pagination > span:first-child { margin-right: auto; }
+.pc-pagination-range { margin-right: auto; }
 
 /* ── 4.7 chips ──────────────────────────────────────────────────────────── */
 .pc-kind { display: inline-flex; align-items: center; gap: var(--space-1); border: 1px solid var(--border); border-radius: 999px; padding: 2px 7px; color: var(--muted-foreground); background: var(--card); font-size: var(--pc-text-badge); font-weight: 650; white-space: nowrap; }
@@ -377,6 +405,15 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
 /* ── 4.10 overlays ──────────────────────────────────────────────────────── */
 .pc-overlay { position: fixed; inset: 0; z-index: var(--pc-z-modal); display: flex; align-items: center; justify-content: center; padding: var(--space-4); background: var(--pc-scrim-strong); color: var(--foreground); font-size: var(--text-body); }
 .pc-overlay[data-kind="panel"] { z-index: var(--pc-z-panel); justify-content: flex-end; padding: 0; background: var(--pc-scrim); }
+/* A side panel beside the collection (PcSidePanel from 768px marks its
+   wrapper data-modal="false"): no scrim, and the full-frame wrapper lets
+   pointer events through, so the rows stay live and the page keeps
+   scrolling under the wheel; only the panel itself takes them. The panel
+   always leaves 320px of rows beside it, whatever width it or a plugin asks
+   for: a 680px node panel in a 768px frame would otherwise cover all but
+   88px. SIDE_PANEL_OUTPUT_BESIDE_QUERY (960 + 320) depends on this number. */
+.pc-overlay[data-modal="false"] { background: transparent; pointer-events: none; }
+.pc-overlay[data-modal="false"] > .pc-side-panel { max-width: calc(100% - 320px); pointer-events: auto; }
 .pc-modal { width: min(660px, 100%); max-height: var(--pc-overlay-max-height); overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--card); box-shadow: var(--shadow-overlay); }
 .pc-modal[data-size="small"] { width: min(440px, 100%); }
 .pc-modal[data-size="large"] { width: min(880px, 100%); }
@@ -442,9 +479,18 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
      that nothing announces; every tab stays visible and in the tablist. */
   .pc-lens-tabs { flex-wrap: wrap; row-gap: 2px; }
   .pc-lens-tab { flex: 1 1 auto; justify-content: center; }
+  /* The layer row is a segmented control here and stays on one line, as
+     vpn-core's does. 8px a side rather than 12: four layers with their
+     counts then fit a 375 frame (NetGuard measured 331px of 341). */
+  .pc-lens-tabs[data-variant="layer"] { flex-wrap: nowrap; gap: 0; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); box-shadow: none; }
+  .pc-lens-tabs[data-variant="layer"] > .pc-lens-tab { flex: 0 0 auto; min-height: 30px; padding: 4px var(--space-2); border-radius: calc(var(--radius-md) - 2px); }
+  .pc-lens-tabs[data-variant="layer"] > .pc-lens-tab[aria-selected="true"] { background: var(--muted); box-shadow: inset 0 0 0 1px var(--border); }
   .pc-search { max-width: none; }
   .pc-toolbar > .pc-button { width: 100%; }
   .pc-toolbar-secondary > .pc-button { flex: 1 1 0; }
+  /* The range takes the first line; Previous, the page and Next share the
+     second, instead of Next wrapping onto a line of its own. */
+  .pc-pagination-range { flex-basis: 100%; }
   .pc-overlay { padding: var(--space-2); }
   .pc-overlay[data-kind="panel"] { padding: 0; }
   .pc-modal > header, .pc-modal > footer, .pc-modal-body, .pc-side-panel > header, .pc-side-panel > footer { padding: var(--space-3); }
@@ -471,6 +517,9 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
 .pc-table[data-stacked="true"] tr::after { content: ""; order: 2; flex: 0 0 100%; height: 0; }
 .pc-table[data-stacked="true"] td.pc-name .pc-narrow-status { display: none; }
 .pc-table[data-stacked="true"] td[data-stack="actions"] { order: 1; flex: 0 0 auto; margin-left: auto; position: static; background: transparent; }
+/* A stacked cell is sized by its content, so the selection label is a 32px
+   square in the flow rather than an overlay on a box with no size. */
+.pc-table[data-stacked="true"] .pc-select-hit { position: static; width: 32px; height: 32px; }
 .pc-table[data-stacked="true"] td[data-stack="summary"] { order: 2; flex: 0 0 100%; }
 /* The verdict cells share line 3: each is its own td, so the first one after
    the full-width name line starts the line and the rest sit beside it. */
@@ -485,3 +534,12 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
 .pc-table[data-stacked="true"] td.pc-name[data-level="1"] { padding-left: 22px; }
 .pc-table[data-stacked="true"] td.pc-name[data-level="2"] { padding-left: 44px; }
 .pc-table[data-stacked="true"] .pc-detail-row > td { padding: 0; }
+
+/* 44px targets on a coarse pointer (design 23 wave 1 decision). Last in the
+   file, so it wins over the narrow and stacked rules that set these sizes at
+   the same specificity. */
+@media (pointer: coarse) {
+  .pc-lens-tabs[data-variant="layer"] > .pc-lens-tab { min-height: 44px; }
+  .pc-table td.pc-select, .pc-table th.pc-select { width: 44px; }
+  .pc-table[data-stacked="true"] .pc-select-hit { width: 44px; height: 44px; }
+}
