@@ -316,7 +316,32 @@ describe("theme state and subscription", () => {
     const second = make();
     const pendingSecond = second.call("svc", "read", null);
     second.dispose();
-    await expect(pendingSecond.promise).rejects.toThrow("Plugin host disconnected");
+    await expect(pendingSecond.promise).rejects.toThrow("The console disconnected this plugin.");
+  });
+});
+
+describe("error sentences", () => {
+  it("says what the operator can do, not only what broke", async () => {
+    // These messages reach the page through safeErrorMessage and the boot
+    // notices. "Request timed out" left the operator guessing whether the
+    // change happened; the sentence says it may have, and what to check.
+    vi.useFakeTimers();
+    const { posted, dispatch, make } = harness();
+    const client = make();
+    const timedOut = client.call("svc", "read", null, 5);
+    await vi.advanceTimersByTimeAsync(5);
+    await expect(timedOut.promise).rejects.toThrow("It may still be running there, so re-check the state before retrying.");
+    const cancelled = client.call("svc", "read", null);
+    cancelled.cancel();
+    await expect(cancelled.promise).rejects.toThrow("so its outcome is unknown");
+    const refused = client.call("svc", "read", null);
+    dispatch({ type: "lattice.host.error", nonce: client.nonce, id: (posted.at(-1)?.message as { id: string }).id });
+    await expect(refused.promise).rejects.toThrow("The console refused this request and gave no reason.");
+    client.dispose();
+    expect(() => client.call("svc", "read", null)).toThrow("nothing was sent");
+    vi.useRealTimers();
+
+    expect(() => harness("#host_origin=https%3A%2F%2Fdash.example").make()).toThrow("open the plugin from the console rather than directly");
   });
 });
 

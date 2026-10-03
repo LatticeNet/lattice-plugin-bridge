@@ -244,14 +244,14 @@ export class BridgeClient {
   }
 
   call<T>(service: string, method: string, payload: unknown, timeoutMs?: number): { promise: Promise<T>; cancel: () => void } {
-    if (this.disposed) throw new BridgeDisposedError("plugin bridge is disposed");
+    if (this.disposed) throw new BridgeDisposedError("This page is no longer connected to the console, so the bridge is disposed and nothing was sent.");
     const id = `${this.idPrefix}-${++this.sequence}`;
     let cancel = () => {};
     const promise = new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
         this.post({ type: "lattice.plugin.cancel", nonce: this.nonce, id });
-        reject(new BridgeTimeoutError("Request timed out"));
+        reject(new BridgeTimeoutError("The console did not answer this request and it timed out. It may still be running there, so re-check the state before retrying."));
       }, timeoutMs ?? this.defaultCallTimeoutMs);
       this.pending.set(id, {
         resolve: resolve as (value: unknown) => void,
@@ -264,7 +264,7 @@ export class BridgeClient {
         clearTimeout(pending.timer);
         this.pending.delete(id);
         this.post({ type: "lattice.plugin.cancel", nonce: this.nonce, id });
-        pending.reject(new BridgeCancelledError("Request cancelled"));
+        pending.reject(new BridgeCancelledError("The request was cancelled before the console answered, so its outcome is unknown."));
       };
       this.post({ type: "lattice.plugin.call", nonce: this.nonce, id, service, method, payload });
     });
@@ -305,7 +305,7 @@ export class BridgeClient {
   }
 
   dispose(reason?: string): void {
-    this.failBridge(new BridgeDisposedError(reason ?? "Plugin host disconnected"));
+    this.failBridge(new BridgeDisposedError(reason ?? "The console disconnected this plugin. Any request still in flight has an unknown outcome: reload and check before retrying."));
   }
 
   private onMessage(event: MessageEvent): void {
@@ -333,12 +333,12 @@ export class BridgeClient {
       case "lattice.host.error":
         if (typeof message.id === "string") {
           this.finish(message.id, new BridgeRemoteError(
-            typeof message.message === "string" ? message.message : "Plugin call failed",
+            typeof message.message === "string" ? message.message : "The console refused this request and gave no reason.",
             typeof message.code === "string" ? message.code : undefined,
           ));
         } else {
           this.failBridge(new BridgeRemoteError(
-            typeof message.message === "string" ? message.message : "Plugin host rejected initialization",
+            typeof message.message === "string" ? message.message : "The console refused to start this plugin. Your session may lack the scopes it declares.",
             typeof message.code === "string" ? message.code : undefined,
           ));
         }
@@ -433,22 +433,25 @@ export function canCall(init: HostInit | undefined, service: string, method: str
   return init?.interfaces.some((contract) => contract.service === service && contract.methods.includes(method)) === true;
 }
 
+/** What a handshake error tells the operator to do about it. */
+const FROM_CONSOLE = " in this page's URL. The Lattice console builds that URL, so open the plugin from the console rather than directly.";
+
 function readChannel(hash: string): { nonce: string; hostOrigin: string } {
   const params = new URLSearchParams(hash.replace(/^#/, ""));
   const nonce = params.get("lattice_nonce");
-  if (!nonce || nonce.length < 16 || nonce.length > 128) throw new BridgeHandshakeError("Missing plugin channel nonce");
+  if (!nonce || nonce.length < 16 || nonce.length > 128) throw new BridgeHandshakeError(`Missing plugin channel nonce${FROM_CONSOLE}`);
   const hostOrigin = params.get("host_origin")?.trim();
-  if (!hostOrigin) throw new BridgeHandshakeError("Missing plugin host origin");
+  if (!hostOrigin) throw new BridgeHandshakeError(`Missing plugin host origin${FROM_CONSOLE}`);
   // Must be an exact absolute http(s) origin — anything else is a host bug
   // or a tampered frame URL, and neither is a reason to silently downgrade.
   let parsed: URL;
   try {
     parsed = new URL(hostOrigin);
   } catch {
-    throw new BridgeHandshakeError("Invalid plugin host origin");
+    throw new BridgeHandshakeError(`Invalid plugin host origin${FROM_CONSOLE}`);
   }
   if (parsed.origin !== hostOrigin || (parsed.protocol !== "https:" && parsed.protocol !== "http:")) {
-    throw new BridgeHandshakeError("Invalid plugin host origin");
+    throw new BridgeHandshakeError(`Invalid plugin host origin${FROM_CONSOLE}`);
   }
   return { nonce, hostOrigin };
 }
