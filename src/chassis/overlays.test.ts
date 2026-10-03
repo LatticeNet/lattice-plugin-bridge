@@ -249,6 +249,81 @@ describe("side panel beside the collection", () => {
     wrapper.unmount();
   });
 
+  it("from 768px Escape typed in a page field stays with the field, and one a control used is left alone", async () => {
+    stubFrameWidth(1440);
+    const Rows = defineComponent({
+      setup() {
+        useOverlayEscape();
+        const open = ref("a");
+        return () => [
+          h("input", { id: "search", type: "search" }),
+          h("input", { id: "pick", type: "checkbox" }),
+          h("button", {
+            id: "menu",
+            onKeydown: (event: KeyboardEvent) => {
+              if (event.key === "Escape") event.preventDefault();
+            },
+          }, "Menu"),
+          h(PcSidePanel, { open: open.value !== "", title: "Record a", onClose: () => (open.value = "") }, () => h("input", { id: "field" })),
+        ];
+      },
+    });
+    const wrapper = mount(Rows, { attachTo: document.body });
+    await nextTick();
+    const press = async (selector: string) => {
+      const target = wrapper.find(selector).element as HTMLElement;
+      target.focus();
+      target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+      await nextTick();
+    };
+    await press("#search");
+    expect(wrapper.find(".pc-side-panel").exists()).toBe(true);
+    await press("#menu");
+    expect(wrapper.find(".pc-side-panel").exists()).toBe(true);
+    // A checkbox is not a text field: Escape there still steps back.
+    await press("#pick");
+    expect(wrapper.find(".pc-side-panel").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("from 768px Escape in a field inside the panel still closes it", async () => {
+    stubFrameWidth(1440);
+    const open = ref(true);
+    const wrapper = mount(defineComponent({
+      setup() {
+        useOverlayEscape();
+        return () => h(PcSidePanel, { open: open.value, title: "Record a", onClose: () => (open.value = false) }, () => h("input", { id: "field" }));
+      },
+    }), { attachTo: document.body });
+    await nextTick();
+    const field = wrapper.find("#field").element as HTMLElement;
+    field.focus();
+    field.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    await nextTick();
+    expect(open.value).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("below 768px the modal sheet takes Escape even from a page field", async () => {
+    stubFrameWidth(375);
+    const open = ref(true);
+    const wrapper = mount(defineComponent({
+      setup() {
+        useOverlayEscape();
+        return () => [
+          h("input", { id: "search", type: "search" }),
+          h(PcSidePanel, { open: open.value, title: "Record a", onClose: () => (open.value = false) }, () => h("p", "record")),
+        ];
+      },
+    }), { attachTo: document.body });
+    await nextTick();
+    const search = wrapper.find("#search").element as HTMLElement;
+    search.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    await nextTick();
+    expect(open.value).toBe(false);
+    wrapper.unmount();
+  });
+
   it("below 768px stays a modal dialog with a scrim and keeps Tab inside", async () => {
     stubFrameWidth(375);
     const wrapper = mount(Page, { attachTo: document.body });

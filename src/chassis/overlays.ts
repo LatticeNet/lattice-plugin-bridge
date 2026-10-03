@@ -26,11 +26,12 @@ interface DialogOptions {
  * opener only when it was in the panel: the panel's removal leaves it on
  * <body>. An operator who has moved on to the rows keeps the focus they put
  * there, so closing the panel from the page does not pull them back to the
- * row that first opened it.
+ * row that first opened it. Escape from a text field on the page, or one a
+ * page control already used, leaves it open (escapeBelongsToPage).
  */
 function useDialog(props: { open: boolean; returnFocusTo: HTMLElement | null }, emitClose: () => void, modal: () => boolean = () => true) {
   const dialog = ref<HTMLElement | null>(null);
-  useOverlayRegistration(() => props.open, emitClose);
+  useOverlayRegistration(() => props.open, emitClose, () => (modal() ? null : dialog.value));
   // The element that held focus when the dialog opened. Focus goes back there
   // on close unless the consumer names another target with returnFocusTo, so
   // a keyboard user lands on the button they pressed, not on <body>.
@@ -162,9 +163,10 @@ export const SIDE_PANEL_BESIDE_QUERY = "(min-width: 768px)";
  * and the panel is a labelled complementary landmark that Tab walks into and
  * out of. Below 768px it is a modal, full-height sheet with a scrim, Tab kept
  * inside. In both, Escape (useOverlayEscape) and the close button close it,
- * and focus returns to the opener. Until the client has measured the frame
- * (a server render, the first client pass, a test without matchMedia) it is
- * modal.
+ * and focus returns to the opener; beside the collection, Escape typed in a
+ * page field (the rows' search) stays with that field. Until the client has
+ * measured the frame (a server render, the first client pass, a test without
+ * matchMedia) it is modal.
  */
 export const PcSidePanel = defineComponent({
   name: "PcSidePanel",

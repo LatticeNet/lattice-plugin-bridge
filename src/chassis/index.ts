@@ -53,6 +53,7 @@ export {
   useOverlayEscape,
   registerOverlay,
   closeTopOverlay,
+  escapeBelongsToPage,
   overlayDepth,
   resetOverlayStack,
   trapDialogTab,

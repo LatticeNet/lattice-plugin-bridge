@@ -12,17 +12,25 @@ import { onActivated, onBeforeUnmount, onDeactivated, onMounted, watch, type Ref
  */
 type CloseFn = () => void;
 
+/**
+ * The overlay's own element while it sits beside a live page (a side panel
+ * from 768px), null while it is modal. Only a non-modal overlay shares the
+ * keyboard with page controls, so only it needs to know where Escape came from.
+ */
+type BesideFn = () => HTMLElement | null | undefined;
+
 interface Entry {
   id: number;
   close: CloseFn;
+  beside?: BesideFn;
 }
 
 const stack: Entry[] = [];
 let sequence = 0;
 
 /** Claim the top of the stack until the returned function is called. */
-export function registerOverlay(close: CloseFn): () => void {
-  const entry: Entry = { id: ++sequence, close };
+export function registerOverlay(close: CloseFn, beside?: BesideFn): () => void {
+  const entry: Entry = { id: ++sequence, close, beside };
   stack.push(entry);
   return () => {
     const at = stack.findIndex((item) => item.id === entry.id);
@@ -34,15 +42,46 @@ export function overlayDepth(): number {
   return stack.length;
 }
 
+/** A control that edits text answers Escape itself (a search field clears). */
+function isTextEntry(target: EventTarget | null): target is Element {
+  if (typeof Element === "undefined" || !(target instanceof Element)) return false;
+  if (target.closest('[contenteditable]:not([contenteditable="false"])')) return true;
+  if (target.tagName === "TEXTAREA" || target.tagName === "SELECT") return true;
+  if (target.tagName !== "INPUT") return false;
+  const type = (target.getAttribute("type") ?? "text").toLowerCase();
+  return !["button", "checkbox", "color", "file", "hidden", "image", "radio", "range", "reset", "submit"].includes(type);
+}
+
+/**
+ * True when this Escape belongs to the page rather than to the top overlay:
+ * the overlay sits beside the page (a non-modal side panel), and either a
+ * control already used the key (preventDefault) or it came from a text field
+ * outside the panel. An operator clearing the rows' search keeps the record
+ * open. From a row, from <body> or from inside the panel, Escape still closes
+ * it, and a modal overlay always takes the key: its page is behind a scrim.
+ */
+export function escapeBelongsToPage(event: KeyboardEvent): boolean {
+  const panel = stack[stack.length - 1]?.beside?.();
+  if (!panel) return false;
+  if (event.defaultPrevented) return true;
+  const target = event.target;
+  return isTextEntry(target) && !panel.contains(target);
+}
+
 /**
  * Close the topmost overlay, if there is one. The entry is not popped here:
  * the overlay's own state change unmounts it and runs its dispose, so there is
  * one path for "this is closed" whether the operator pressed Escape, clicked
  * the scrim, or the screen closed it in code.
+ *
+ * Pass the keydown when Escape is the reason, so an Escape that belongs to
+ * the page beside a non-modal panel (escapeBelongsToPage) leaves it open and
+ * this returns false.
  */
-export function closeTopOverlay(): boolean {
+export function closeTopOverlay(event?: KeyboardEvent): boolean {
   const top = stack[stack.length - 1];
   if (!top) return false;
+  if (event && escapeBelongsToPage(event)) return false;
   top.close();
   return true;
 }
@@ -61,8 +100,12 @@ export function useOverlayStack(): {
   return { register: registerOverlay, closeTop: closeTopOverlay, depth: overlayDepth };
 }
 
-/** Keep an overlay's place in the stack for exactly as long as it is open. */
-export function useOverlayRegistration(open: Ref<boolean> | (() => boolean), close: () => void): void {
+/**
+ * Keep an overlay's place in the stack for exactly as long as it is open.
+ * `beside` returns the overlay's element while it sits beside a live page
+ * (see escapeBelongsToPage), null while it is modal.
+ */
+export function useOverlayRegistration(open: Ref<boolean> | (() => boolean), close: () => void, beside?: BesideFn): void {
   let dispose: (() => void) | undefined;
   const release = (): void => {
     dispose?.();
@@ -71,7 +114,7 @@ export function useOverlayRegistration(open: Ref<boolean> | (() => boolean), clo
   watch(
     typeof open === "function" ? open : () => open.value,
     (isOpen) => {
-      if (isOpen && !dispose) dispose = registerOverlay(close);
+      if (isOpen && !dispose) dispose = registerOverlay(close, beside);
       else if (!isOpen) release();
     },
     { immediate: true },
@@ -80,7 +123,8 @@ export function useOverlayRegistration(open: Ref<boolean> | (() => boolean), clo
 }
 
 /**
- * Escape closes the topmost overlay and nothing else. Bound to the
+ * Escape closes the topmost overlay and nothing else, unless it belongs to
+ * the page beside a non-modal panel (escapeBelongsToPage). Bound to the
  * activate/deactivate pair as well as mount, because a shell that keeps
  * screens alive across tab switches would otherwise leave a hidden screen
  * listening.
@@ -88,7 +132,7 @@ export function useOverlayRegistration(open: Ref<boolean> | (() => boolean), clo
 export function useOverlayEscape(target: () => Document | undefined = () => (typeof document === "undefined" ? undefined : document)): void {
   function onKeydown(event: KeyboardEvent): void {
     if (event.key !== "Escape") return;
-    if (closeTopOverlay()) event.stopPropagation();
+    if (closeTopOverlay(event)) event.stopPropagation();
   }
   const bind = (): void => target()?.addEventListener("keydown", onKeydown);
   const release = (): void => target()?.removeEventListener("keydown", onKeydown);
