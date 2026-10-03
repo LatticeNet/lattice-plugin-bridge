@@ -62,6 +62,17 @@ the operator press it and read an error.
 `client.resize(height)` asks the host to resize the frame. `client.dispose(reason)` tears
 the client down.
 
+Page state lives in the console's address, because the frame URL is content-addressed and
+carries no query. `init.pageState` is the console route's query as the plugin may read it
+(`{}` when there is none); it is absent when the host predates the contract, and the page
+then keeps its state in its own document. `client.sendState(state)` hands the page's full
+state back, and the host writes it into its query with a history replace. Both sides apply
+the same rules, exported as `validPageState` and the `PAGE_STATE_*` constants: at most 16
+keys, keys matching `^[a-z][a-z0-9_]{0,23}$`, string values of at most 256 characters, and
+the console's sign-in, SSO and MFA keys never cross. A state that breaks a rule is not sent
+at all, nothing is sent before init, and a reserved key that arrives in init is dropped on
+its own.
+
 Errors are typed: `BridgeError` is the base, with `BridgeRemoteError` (the host refused or
 the backend failed, carries an optional `code`), `BridgeCancelledError`,
 `BridgeTimeoutError`, `BridgeDisposedError`, and `BridgeHandshakeError`.
@@ -131,12 +142,12 @@ What the parts do, in one line each:
 
 - `PcWorkspace` is the page frame (`batch` keeps room for a batch bar). `PcPageHeader` takes `title`, `badge`, `description`, an `icon` component or `#icon` slot, `#actions` for the page-level Refresh, and `#proof` for the proof line, which then sits inside the header above its hairline. `PcProofLine` prints `segments` joined by a middle dot, plus "refreshing".
 - `PcNotice` has a `tone` (danger, success, warning, info), a `title`, `dismissible`, an `#actions` slot for "Try again". `PcStatStrip` takes `count` and `label`; `PcStatCard` takes `label`, `value`, `note`, and a `tone` that colours the value only.
-- `PcToolbar` renders its slots in order: `tabs`, `search`, `note`, spacer, `secondary`, `primary`. `PcLensTabs` is a `v-model` tablist that answers ArrowLeft and ArrowRight; `PcLensTab` takes `value`, `label`, `count` (absent until read, never "0"), `countTone`, `icon`. `PcSearchField` is a `v-model` search input. `PcButton` takes `variant` (primary, secondary, danger), `compact`, `destructive`, `busy`, `disabled`, with an `#icon` slot; `PcIconButton` takes `label`, `bordered`, `destructive`, `size`.
+- `PcToolbar` renders its slots in order: `tabs`, `search`, `note`, spacer, `secondary`, `primary`. `PcLensTabs` is a `v-model` tablist that answers ArrowLeft, ArrowRight, Home and End; with `variant="layer"` it is the page's row of layers instead of a lens inside a toolbar: place it directly in `PcWorkspace` above the layer's toolbar, and it draws an underline row from 620px and a one-line segmented control below that scrolls sideways when the tabs are wider than the frame, with no icons, and scrolls its selected tab into view on mount, on a selection change and when a count first arrives (`revealSelectedTab` is that rule on its own); `PcLensTab` takes `value`, `label`, `count` (absent until read, never "0"), `countTone`, `icon`. `PcSearchField` is a `v-model` search input. `PcButton` takes `variant` (primary, secondary, danger), `compact`, `destructive`, `busy`, `disabled`, with an `#icon` slot; `PcIconButton` takes `label`, `bordered`, `destructive`, `size`.
 - `PcPanel` is the bordered card; `PcPanelHeader` takes `title`, `description`, and the count badge in its default slot; `PcPanelBody` pads a form. `PcTable` takes `minWidth`, `density`, `label`, and `stacked` (leave it undefined and the table follows the frame width below `stackBelow`, 480px); its `#head` slot renders inside `<thead><tr>` and its default slot inside `<table>`, so the consumer writes one `<tbody>` per group. `PcTh` takes `name`, `numeric`, `actions`, `select`, `sortable` and `sort`, emitting `sort`. `PcTd` takes `numeric`, `mono`, `colspan`, `title`, a `label` (the column header, printed in the stacked form) and `stack` (name, summary, state, actions, detail: which line of the stacked row it belongs to).
-- `PcGroupRow`, `PcBankRow` (`expanded`, `id`, `selected`) and `PcRow` (`open`, `id`, `selected`) are the three row levels; `PcDetailRow` (`colspan`) is the in-place detail under a row. `PcNameCell` takes `name`, `id` (the muted mono line), `sub` (replaces it), `level` (0, 1, 2 for the indent), `status` (a dot at the name baseline), and becomes a toggle when `expanded` is bound (`controls`, emits `toggle`); its `#after` slot holds chips after the name and `#status` the narrow status line shown under 720px. `PcRowToggle` is the chevron button on its own: Enter and Space toggle it, ArrowRight opens, ArrowLeft closes, and inside a `PcTable` ArrowDown and ArrowUp move between toggles. `PcActionsCell` is the sticky right column; `PcRowActions` groups a text button and an icon button. `PcSelectCell` (`checked`, `indeterminate`, `label`, `header`, emits `change`) is the optional leading selection column. `PcPagination` takes `page`, `pages`, `from`, `to`, `total`, `noun`, `note` and emits `update:page`.
+- `PcGroupRow`, `PcBankRow` (`expanded`, `id`, `selected`) and `PcRow` (`open`, `id`, `selected`) are the three row levels; `PcDetailRow` (`colspan`) is the in-place detail under a row. `PcNameCell` takes `name`, `id` (the muted mono line), `sub` (replaces it), `level` (0, 1, 2 for the indent), `status` (a dot at the name baseline), and becomes a toggle when `expanded` is bound (`controls`, emits `toggle`); its `#after` slot holds chips after the name and `#status` the narrow status line shown under 720px. `PcRowToggle` is the chevron button on its own: Enter and Space toggle it, ArrowRight opens, ArrowLeft closes, and inside a `PcTable` ArrowDown and ArrowUp move between toggles. `PcActionsCell` is the sticky right column; `PcRowActions` groups a text button and an icon button. `PcSelectCell` (`checked`, `indeterminate`, `label`, `header`, emits `change`) is the optional leading selection column; the box sits in a label that fills the cell, so a row click handler should leave clicks inside `.pc-select` alone. `PcPagination` takes `page`, `pages`, `from`, `to`, `total`, `noun`, `note` and emits `update:page`; its range and page texts carry `.pc-pagination-range` and `.pc-pagination-page`.
 - Chips: `PcStateDot` and `PcStatePill` (`tone`: healthy, warning, error, info, neutral; `label`; `title` carrying the evidence), `PcKindChip` (`label`, `tone` info for a managed or derived kind), `PcTagChip` (`label`), `PcTagList` (`tags`, `max`, folds the rest into "+N"), `PcCount` (`value`, `tone`).
 - `PcSkeleton` (`variant` strip or rows, `count`, `label`) and `PcEmptyState` (`title`, `kind`: empty, no-match, permission, error, handshake; `icon`; `#actions`).
-- `PcModal` (`open`, `title`, `description`, `size` small, default, large, `returnFocusTo`, emits `close`; `#footer`; on close, focus goes back to `returnFocusTo` or, left unset, to the element that had focus when the dialog opened), `PcSidePanel` (the same with `size` record or output), `PcConfirmDialog` (`open`, `title`, `message`, `confirmLabel`, `cancelLabel`, `destructive`, `busy`, emits `confirm` and `cancel`), `PcBatchBar` (`count`, emits `clear`).
+- `PcModal` (`open`, `title`, `description`, `size` small, default, large, `returnFocusTo`, emits `close`; `#footer`; on close, focus goes back to `returnFocusTo` or, left unset, to the element that had focus when the dialog opened), `PcSidePanel` (the same with `size` record or output; from 768px, `SIDE_PANEL_BESIDE_QUERY`, it sits beside the collection and is not modal: no scrim, the wrapper lets pointer events through so the rows stay live and a row click swaps the record, `role="complementary"` labelled by its title, and Tab walks in and out; Escape and the close button still close it, and focus goes back to the opener when it was in the panel. Below 768px it is a modal full-height sheet), `PcConfirmDialog` (`open`, `title`, `message`, `confirmLabel`, `cancelLabel`, `destructive`, `busy`, emits `confirm` and `cancel`), `PcBatchBar` (`count`, emits `clear`).
 - Behaviour: `useExpandSet()` is the open set for one level of grouping (`isOpen`, `toggle`, `open`, `close`, `replace`, `clear`, and `override(keys)` for a search that opens every match without losing the operator's own set). `useOverlayEscape()` binds one document handler that closes the top of the overlay stack; `useOverlayRegistration`, `registerOverlay`, `closeTopOverlay`, `overlayDepth` and `trapDialogTab` are the pieces under it. `useDocumentQueryState()` reads and writes `?expand=`, `?bank=`, `?lens=` without touching the handshake fragment. `useMediaQuery(query)` is the ref behind the stacked form.
 
 `dev/harness.html` renders the Lines page on the chassis with realistic content. After
@@ -154,8 +165,12 @@ npm run build     # tsc -p tsconfig.build.json plus the chassis stylesheet, emit
 
 ## Consumers
 
-Pinned at `0.1.0-alpha.1` by the netguard, sub-store, and wireguard plugin UIs. vpn-core
-still carries its own `ui/src/bridge.ts` copy and has not been migrated.
+The netguard, sub-store and wireguard plugin UIs render on the chassis and use the client;
+until 0.2.0 they vendored a pack of `0.1.0-alpha.2`. vpn-core takes the page-state rules
+and `revealSelectedTab` from this package but keeps its own client in `ui/src/bridge.ts`:
+this client applies the whole token contract, and vpn-core's stylesheet still reads its
+own radius and type values, so moving it waits on the decision whether Lines adopts the
+chassis tokens.
 
 ## Branching
 
