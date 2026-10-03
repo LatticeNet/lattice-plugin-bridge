@@ -41,7 +41,7 @@ export type { StateTone, CountTone } from "./chips.js";
 export { PcSkeleton, PcEmptyState } from "./states.js";
 export type { EmptyKind } from "./states.js";
 
-export { PcModal, PcSidePanel, PcConfirmDialog, PcBatchBar } from "./overlays.js";
+export { PcModal, PcSidePanel, PcConfirmDialog, PcBatchBar, SIDE_PANEL_BESIDE_QUERY } from "./overlays.js";
 export type { ModalSize, PanelSize } from "./overlays.js";
 
 export { useExpandSet } from "./expandSet.js";

@@ -377,6 +377,12 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
 /* ── 4.10 overlays ──────────────────────────────────────────────────────── */
 .pc-overlay { position: fixed; inset: 0; z-index: var(--pc-z-modal); display: flex; align-items: center; justify-content: center; padding: var(--space-4); background: var(--pc-scrim-strong); color: var(--foreground); font-size: var(--text-body); }
 .pc-overlay[data-kind="panel"] { z-index: var(--pc-z-panel); justify-content: flex-end; padding: 0; background: var(--pc-scrim); }
+/* A side panel beside the collection (PcSidePanel from 768px marks its
+   wrapper data-modal="false"): no scrim, and the full-frame wrapper lets
+   pointer events through, so the rows stay live and the page keeps
+   scrolling under the wheel; only the panel itself takes them. */
+.pc-overlay[data-modal="false"] { background: transparent; pointer-events: none; }
+.pc-overlay[data-modal="false"] > .pc-side-panel { pointer-events: auto; }
 .pc-modal { width: min(660px, 100%); max-height: var(--pc-overlay-max-height); overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--card); box-shadow: var(--shadow-overlay); }
 .pc-modal[data-size="small"] { width: min(440px, 100%); }
 .pc-modal[data-size="large"] { width: min(880px, 100%); }
