@@ -435,9 +435,19 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
 .pc-side-panel { display: flex; width: min(440px, 100%); height: 100%; flex-direction: column; border-left: 1px solid var(--border); background: var(--card); box-shadow: var(--shadow-overlay); }
 .pc-side-panel[data-size="output"] { width: min(960px, 100%); }
 .pc-side-panel:focus { outline: none; }
-.pc-side-panel > header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); padding: var(--space-4); border-bottom: 1px solid var(--border); }
+/* The panel's header reads as the console's object sheet (ObjectSheet.vue):
+   20px in at the top and the start, 16px under the subtitle, a 16/24 title
+   at weight 600, a 12/16 subtitle, and the close's 16px X 16px from the
+   panel's top and end, where the sheet draws its X, centred in a 32px
+   target. Measured at 1440 against Approvals the header was 71px to the
+   sheet's 81, its title a different weight and its X 23px in. A subtitle
+   that is an id can be set in mono through the description slot
+   (`.pc-mono`), as the sheet does for ids. */
+.pc-side-panel > header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); padding: calc(var(--space-4) + var(--space-1)) var(--space-4) var(--space-4) calc(var(--space-4) + var(--space-1)); border-bottom: 1px solid var(--border); }
 .pc-side-panel h2 { margin: 0; font-size: var(--pc-text-lg); font-weight: 650; }
-.pc-side-panel > header p { margin: var(--space-1) 0 0; color: var(--muted-foreground); font-size: var(--pc-text-sm); }
+.pc-side-panel > header h2 { font-weight: 600; line-height: 24px; letter-spacing: -0.01em; }
+.pc-side-panel > header p { margin: var(--space-1) 0 0; color: var(--muted-foreground); font-size: var(--pc-text-xs); line-height: 16px; overflow-wrap: anywhere; }
+.pc-side-panel > header > .pc-icon-button { width: 32px; height: 32px; margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-2)) 0 0; }
 .pc-side-panel .pc-modal-body { flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; }
 .pc-side-panel > footer { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); padding: var(--space-4); border-top: 1px solid var(--border); }
 .pc-batch-bar { position: fixed; left: 50%; bottom: var(--space-4); z-index: var(--pc-z-inline); display: flex; width: max-content; max-width: calc(100% - var(--space-6)); min-height: 46px; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-overlay); transform: translateX(-50%); font-size: var(--pc-text-sm); }
@@ -500,7 +510,9 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
   .pc-pagination-range { flex-basis: 100%; }
   .pc-overlay { padding: var(--space-2); }
   .pc-overlay[data-kind="panel"] { padding: 0; }
-  .pc-modal > header, .pc-modal > footer, .pc-modal-body, .pc-side-panel > header, .pc-side-panel > footer { padding: var(--space-3); }
+  /* The side panel's header keeps its sheet spacing on a phone, as the
+     console's sheet does. */
+  .pc-modal > header, .pc-modal > footer, .pc-modal-body, .pc-side-panel > footer { padding: var(--space-3); }
   .pc-modal > footer, .pc-side-panel > footer { flex-wrap: wrap; }
   .pc-modal > footer .pc-button, .pc-side-panel > footer .pc-button { flex: 1 1 auto; }
 }
@@ -547,6 +559,9 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
    the same specificity. */
 @media (pointer: coarse) {
   .pc-lens-tabs[data-variant="layer"] > .pc-lens-tab { min-height: 44px; }
+  /* As the console sheet's close on touch: 44px, its corner 2px from the
+     panel's top and end, the X still 16px in. */
+  .pc-side-panel > header > .pc-icon-button { width: 44px; height: 44px; margin: calc(2px - var(--space-4) - var(--space-1)) calc(2px - var(--space-4)) 0 0; }
   .pc-table td.pc-select, .pc-table th.pc-select { width: 44px; }
   .pc-table[data-stacked="true"] .pc-select-hit { width: 44px; height: 44px; }
 }

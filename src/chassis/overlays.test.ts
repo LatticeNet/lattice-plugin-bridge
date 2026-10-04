@@ -180,7 +180,11 @@ describe("side panel beside the collection", () => {
     // header. The workspace's stack rhythm (`> * + *`) gave every such overlay
     // a 16px top margin, and a fixed inset-0 box with a top margin starts 16px
     // down: the panel floated under the console's top bar with the page
-    // showing through the gap. The flow blocks keep their rhythm.
+    // showing through the gap. The flow blocks keep their rhythm. This guards
+    // that the rule is present, not its specificity: jsdom's cascade fails it
+    // when the rule moves above the rhythm rule, where a browser still
+    // applies it (0,2,0 over 0,1,0). The geometry, the panel's top edge at
+    // y 0, is checked in Chromium.
     stubFrameWidth(1440);
     const style = document.createElement("style");
     style.textContent = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "chassis.css"), "utf8");
