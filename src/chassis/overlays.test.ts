@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PcBatchBar, PcConfirmDialog, PcModal, PcSidePanel, SIDE_PANEL_BESIDE_QUERY, SIDE_PANEL_OUTPUT_BESIDE_QUERY } from "./overlays";
 import { closeTopOverlay, overlayDepth, resetOverlayStack, useOverlayEscape } from "./overlayStack";
-import { PcNotice, PcPageHeader, PcProofLine, PcStatCard, PcStatStrip } from "./page";
+import { PcNotice, PcPageHeader, PcProofLine, PcStatCard, PcStatStrip, PcWorkspace } from "./page";
 import { PcEmptyState, PcSkeleton } from "./states";
 import { useDocumentQueryState } from "./queryState";
 
@@ -173,6 +173,37 @@ describe("side panel beside the collection", () => {
         ]),
       ];
     },
+  });
+
+  it("opened inside the workspace, the panel and a modal start at the frame's top edge, not a stack gap below it", async () => {
+    // A plugin page renders its overlays as children of PcWorkspace, after the
+    // header. The workspace's stack rhythm (`> * + *`) gave every such overlay
+    // a 16px top margin, and a fixed inset-0 box with a top margin starts 16px
+    // down: the panel floated under the console's top bar with the page
+    // showing through the gap. The flow blocks keep their rhythm.
+    stubFrameWidth(1440);
+    const style = document.createElement("style");
+    style.textContent = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "chassis.css"), "utf8");
+    document.head.append(style);
+    const Workspace = defineComponent({
+      setup() {
+        return () =>
+          h(PcWorkspace, null, () => [
+            h(PcPageHeader, { title: "NetGuard" }),
+            h("section", { id: "flow" }, "rows"),
+            h(PcSidePanel, { open: true, title: "Node", onClose: () => {} }, () => h("p", "facts")),
+            h(PcModal, { open: true, title: "Apply", onClose: () => {} }, () => h("p", "question")),
+          ]);
+      },
+    });
+    const wrapper = mount(Workspace, { attachTo: document.body });
+    await nextTick();
+    const overlays = wrapper.findAll(".pc-overlay");
+    expect(overlays).toHaveLength(2);
+    for (const overlay of overlays) expect(getComputedStyle(overlay.element).marginTop).toMatch(/^0(px)?$/);
+    expect(getComputedStyle(wrapper.find("#flow").element).marginTop).toBe("var(--space-4)");
+    wrapper.unmount();
+    style.remove();
   });
 
   it("from 768px is a labelled complementary landmark with no scrim and no aria-modal", async () => {

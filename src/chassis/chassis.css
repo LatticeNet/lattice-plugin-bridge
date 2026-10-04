@@ -405,6 +405,13 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
 /* ── 4.10 overlays ──────────────────────────────────────────────────────── */
 .pc-overlay { position: fixed; inset: 0; z-index: var(--pc-z-modal); display: flex; align-items: center; justify-content: center; padding: var(--space-4); background: var(--pc-scrim-strong); color: var(--foreground); font-size: var(--text-body); }
 .pc-overlay[data-kind="panel"] { z-index: var(--pc-z-panel); justify-content: flex-end; padding: 0; background: var(--pc-scrim); }
+/* A page renders its panels and dialogs inside PcWorkspace, after the header,
+   where the stack rhythm (`.pc-workspace > * + *`) would hand the overlay a
+   top margin. On a fixed inset-0 box that margin moves the top edge down, so
+   a side panel started 16px below the console's top bar with the page
+   showing through. An overlay is out of flow and takes no part in the
+   rhythm. Two classes, so it holds whatever order the rules come in. */
+.pc-workspace > .pc-overlay { margin: 0; }
 /* A side panel beside the collection (PcSidePanel from 768px marks its
    wrapper data-modal="false"): no scrim, and the full-frame wrapper lets
    pointer events through, so the rows stay live and the page keeps
