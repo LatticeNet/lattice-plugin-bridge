@@ -4,6 +4,11 @@ on:
   pull_request:
   push:
     branches: [main, integration]
+  # The console's query core can change without a change here; a weekly run
+  # catches that drift even when this repository is quiet.
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -21,3 +26,20 @@ jobs:
       - run: npm test
       - run: npm run typecheck
       - run: npm run build
+
+  # The list query lives twice: in lattice-dashboard src/lib/query and, ported,
+  # in src/query here. The shared vectors hold both to one behaviour.
+  console-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: LatticeNet/lattice-dashboard
+          ref: integration
+          path: console
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --version
+      - run: node --experimental-strip-types scripts/console-parity.mjs console
