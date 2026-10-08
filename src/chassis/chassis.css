@@ -135,6 +135,8 @@
   --pc-ring-soft: color-mix(in oklab, var(--ring) 22%, transparent);
 
   --pc-z-inline: 10;
+  /* The query field's end buttons; wider on a coarse pointer. */
+  --pc-query-button: 28px;
   --pc-z-panel: 20;
   --pc-z-modal: 30;
 
@@ -251,6 +253,70 @@
 .pc-search input { width: 100%; min-height: 34px; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 7px var(--space-3); color: var(--foreground); background: var(--card); outline: 0; font-size: var(--pc-text-sm); }
 .pc-search input:focus { border-color: var(--ring); box-shadow: 0 0 0 3px var(--pc-ring-soft); }
 .pc-search input::placeholder { color: var(--muted-foreground); }
+
+/* The query field (PcQueryBar): the console's ListQueryBar on these tokens.
+   A mono line the height of a toolbar button, the count and two quiet
+   buttons inside its end, a listbox under it, the help card anchored to its
+   end, and the error under the field in the flow. A toolbar that holds it
+   aligns its parts to the top, so an error line grows the toolbar downward
+   without moving the field off the buttons beside it. */
+.pc-toolbar:has(> .pc-query) { align-items: flex-start; }
+.pc-toolbar:has(> .pc-query) > .pc-toolbar-note { min-height: 34px; }
+.pc-query { display: flex; flex: 1 1 360px; flex-direction: column; min-width: 0; max-width: 560px; }
+.pc-query-box { position: relative; }
+.pc-query-icon { position: absolute; top: 50%; left: 10px; display: flex; color: var(--muted-foreground); pointer-events: none; transform: translateY(-50%); }
+.pc-query .pc-query-input { display: block; width: 100%; min-width: 0; height: 34px; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0 var(--space-2) 0 32px; color: var(--foreground); background: var(--card); box-shadow: var(--shadow-raised); font-family: var(--font-mono); font-size: var(--text-mono); outline: 0; transition: border-color var(--pc-dur) var(--pc-ease), box-shadow var(--pc-dur) var(--pc-ease); }
+.pc-query .pc-query-input::placeholder { color: var(--muted-foreground); }
+.pc-query .pc-query-input:focus-visible { border-color: var(--ring); box-shadow: 0 0 0 3px var(--pc-ring-soft); outline: 0; }
+.pc-query[data-invalid="true"] .pc-query-input { border-color: var(--warning); }
+.pc-query[data-invalid="true"] .pc-query-input:focus-visible { border-color: var(--warning); box-shadow: 0 0 0 3px color-mix(in oklab, var(--warning) 30%, transparent); }
+.pc-query-end { position: absolute; top: 50%; right: 3px; display: flex; align-items: center; transform: translateY(-50%); }
+.pc-query-count { margin-right: 6px; color: var(--muted-foreground); font-family: var(--font-mono); font-size: var(--pc-text-label); font-variant-numeric: tabular-nums; white-space: nowrap; pointer-events: none; }
+.pc-query .pc-query-button { position: relative; display: grid; width: var(--pc-query-button); height: 28px; place-items: center; border: 0; border-radius: var(--radius-sm); padding: 0; color: var(--muted-foreground); background: transparent; transition: color var(--pc-dur) var(--pc-ease), background-color var(--pc-dur) var(--pc-ease); }
+.pc-query .pc-query-button:hover, .pc-query .pc-query-button[aria-expanded="true"] { color: var(--foreground); background: var(--pc-hover); }
+.pc-query .pc-query-button:focus-visible { outline-offset: -2px; }
+.pc-query-menu { position: absolute; top: calc(100% + 4px); right: 0; left: 0; z-index: var(--pc-z-inline); max-height: 288px; margin: 0; overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-1); color: var(--foreground); background: var(--card); box-shadow: var(--shadow-overlay); list-style: none; }
+.pc-query-menu[hidden] { display: none; }
+.pc-query-menu-heading { padding: var(--space-1) var(--space-2) 2px; color: var(--muted-foreground); font-size: var(--pc-text-label); font-weight: 600; }
+.pc-query-option { display: flex; height: 32px; align-items: center; gap: var(--space-3); border-radius: var(--radius-sm); padding: 0 var(--space-2); cursor: pointer; font-size: var(--pc-text-xs); }
+.pc-query-option:hover { background: var(--pc-hover); }
+.pc-query-option[aria-selected="true"] { color: var(--accent-foreground); background: var(--accent); }
+.pc-query-option-icon { display: flex; flex: 0 0 auto; color: var(--muted-foreground); }
+.pc-query-option-label { flex: 0 1 auto; min-width: 0; overflow: hidden; font-family: var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
+.pc-query-option-hint { flex: 1 1 0; min-width: 0; overflow: hidden; text-align: right; color: var(--muted-foreground); font-size: var(--pc-text-label); text-overflow: ellipsis; white-space: nowrap; }
+.pc-query-help { position: absolute; top: calc(100% + 6px); right: 0; z-index: var(--pc-z-inline); width: min(480px, calc(100vw - 2 * var(--space-2))); max-height: 544px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-3); color: var(--foreground); background: var(--card); box-shadow: var(--shadow-overlay); font-size: var(--pc-text-xs); line-height: 1.45; }
+.pc-query-help:focus-visible { outline: 0; }
+.pc-query-help p { margin: 0; }
+.pc-query-help-title { font-size: var(--pc-text-sm); font-weight: 650; }
+.pc-query-help .pc-query-help-heading { margin-top: var(--space-3); color: var(--muted-foreground); font-weight: 600; }
+.pc-query-help .pc-query-help-note { margin-top: var(--space-2); color: var(--muted-foreground); }
+.pc-query-help-note strong { font-weight: 600; }
+.pc-query-help-flags { color: var(--foreground); font-family: var(--font-mono); }
+.pc-query-help-grid { display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr); gap: 3px var(--space-3); margin: var(--space-1) 0 0; }
+.pc-query-help-grid dt { color: var(--foreground); font-family: var(--font-mono); overflow-wrap: anywhere; }
+.pc-query-help-grid[data-kind="syntax"] dt { white-space: pre; }
+.pc-query-help-grid dd { margin: 0; color: var(--muted-foreground); }
+.pc-query-help-examples { display: grid; gap: 6px; margin: var(--space-1) 0 0; padding: 0; list-style: none; }
+.pc-query-help-examples li { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; }
+.pc-query-help-examples span { color: var(--muted-foreground); }
+.pc-query .pc-query-example { border: 0; border-radius: var(--radius-sm); padding: 0; color: var(--pc-accent-ink); background: transparent; font-family: var(--font-mono); text-align: left; text-underline-offset: 2px; overflow-wrap: anywhere; }
+.pc-query .pc-query-example:hover { text-decoration: underline; }
+/* Empty, the status line takes no room but stays in the tree as a live region. */
+.pc-query-status { min-width: 0; font-size: var(--pc-text-xs); }
+.pc-query-status:not(:empty) { padding-top: var(--space-1); }
+.pc-query-status p { margin: 0; }
+.pc-query-error { color: var(--warning-text); }
+.pc-query-column { color: var(--muted-foreground); }
+.pc-query .pc-query-suggestion { margin-left: var(--space-1); border: 0; border-radius: var(--radius-sm); padding: 0; color: var(--foreground); background: transparent; font-family: var(--font-mono); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.pc-query .pc-query-suggestion:hover { color: var(--pc-accent-ink); }
+.pc-query-snippet { overflow: hidden; color: var(--muted-foreground); font-family: var(--font-mono); text-overflow: ellipsis; white-space: pre; }
+.pc-query-snippet mark { border-radius: 2px; padding: 0 1px; color: var(--foreground); background: color-mix(in oklab, var(--warning) 25%, transparent); text-decoration: underline wavy var(--warning); text-underline-offset: 2px; }
+.pc-query-stale { color: var(--muted-foreground); }
+/* The rows under a query that does not read answer an earlier one: a page
+   sets data-stale (and inert) on the panel while useListQuery says `invalid`,
+   as the console dims its list, so nobody acts on rows they cannot see the
+   query for. */
+.pc-panel[data-stale="true"] { opacity: 0.55; transition: opacity var(--pc-dur-base) var(--pc-ease); }
 .pc-select { min-height: 34px; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 6px var(--space-2); color: var(--foreground); background: var(--card); font-size: var(--pc-text-sm); }
 
 /* ── buttons ────────────────────────────────────────────────────────────── */
@@ -469,6 +535,7 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
 @media (max-width: 720px) {
   .pc-stat-value { white-space: normal; font-size: var(--pc-text-stat-narrow); }
   .pc-search { max-width: none; }
+  .pc-query { max-width: none; }
   .pc-table th.pc-name, .pc-table td.pc-name { position: sticky; left: 0; z-index: 1; min-width: 168px; max-width: 200px; background: var(--card); box-shadow: 1px 0 0 var(--border); }
   .pc-table th.pc-name { z-index: 3; background: var(--pc-head-surface); box-shadow: 1px 0 0 var(--border), inset 0 -1px 0 var(--border); }
   .pc-table tbody tr:hover > td.pc-name { background-color: var(--pc-hover-solid); }
@@ -503,6 +570,11 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
   .pc-lens-tabs[data-variant="layer"] > .pc-lens-tab { flex: 0 0 auto; min-height: 30px; padding: 4px var(--space-2); border-radius: calc(var(--radius-md) - 2px); }
   .pc-lens-tabs[data-variant="layer"] > .pc-lens-tab[aria-selected="true"] { background: var(--muted); box-shadow: inset 0 0 0 1px var(--border); }
   .pc-search { max-width: none; }
+  /* A column toolbar: every part stretches to the frame again (the top
+     alignment above outranks the stretch), and the field takes its own
+     height, not the row basis. */
+  .pc-toolbar:has(> .pc-query) { align-items: stretch; }
+  .pc-query { flex: 0 0 auto; }
   .pc-toolbar > .pc-button { width: 100%; }
   .pc-toolbar-secondary > .pc-button { flex: 1 1 0; }
   /* The range takes the first line; Previous, the page and Next share the
@@ -564,4 +636,10 @@ td.pc-name[data-level="2"] { padding-left: calc(var(--space-3) + 44px); }
   .pc-side-panel > header > .pc-icon-button { width: 44px; height: 44px; margin: calc(2px - var(--space-4) - var(--space-1)) calc(2px - var(--space-4)) 0 0; }
   .pc-table td.pc-select, .pc-table th.pc-select { width: 44px; }
   .pc-table[data-stacked="true"] .pc-select-hit { width: 44px; height: 44px; }
+  /* The query field's end buttons: 36px wide and a 44px tall hit area, inside the 34px line. */
+  :root { --pc-query-button: 36px; }
+  .pc-query .pc-query-button::after { content: ""; position: absolute; inset: -8px 0; }
+  .pc-query-option { height: 40px; }
+  .pc-query .pc-query-suggestion, .pc-query .pc-query-example { position: relative; }
+  .pc-query .pc-query-suggestion::after, .pc-query .pc-query-example::after { content: ""; position: absolute; inset: -12px -4px; }
 }

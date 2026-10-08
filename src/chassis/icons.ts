@@ -2,7 +2,8 @@ import { h, type VNode } from "vue";
 
 /**
  * The handful of glyphs the chassis draws itself: the chevron on a toggle,
- * the close mark, the spinner, the sort mark. Page and row icons come from the
+ * the close mark, the spinner, the sort mark, and the query field's search,
+ * help and recent marks. Page and row icons come from the
  * consumer through slots or `icon` props, so the chassis does not depend on an
  * icon package. Paths are Lucide's, at its 24-unit grid and 2-unit stroke.
  */
@@ -66,5 +67,25 @@ export function iconInbox(size = 26): VNode {
   return glyph(size, [
     h("polyline", { points: "22 12 16 12 14 15 10 15 8 12 2 12" }),
     h("path", { d: "M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" }),
+  ]);
+}
+
+export function iconSearch(size = 16): VNode {
+  return glyph(size, [h("path", { d: "m21 21-4.34-4.34" }), h("circle", { cx: 11, cy: 11, r: 8 })]);
+}
+
+export function iconHelp(size = 16): VNode {
+  return glyph(size, [
+    h("circle", { cx: 12, cy: 12, r: 10 }),
+    h("path", { d: "M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" }),
+    h("path", { d: "M12 17h.01" }),
+  ]);
+}
+
+export function iconHistory(size = 14): VNode {
+  return glyph(size, [
+    h("path", { d: "M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" }),
+    h("path", { d: "M3 3v5h5" }),
+    h("path", { d: "M12 7v5l4 2" }),
   ]);
 }

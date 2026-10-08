@@ -30,6 +30,7 @@
   <script type="module">
     import { createApp, ref, computed, h } from "vue";
     import * as chassis from "../dist/chassis/index.js";
+    import * as query from "../dist/query/index.js";
 
     const params = new URLSearchParams(location.search);
     const theme = params.get("theme") ?? "dark";
@@ -70,10 +71,51 @@
         ] },
     ];
 
+    // What the plugin knows about each node, under the control plane's names (PluginNodeFacts).
+    const ago = (seconds) => new Date(Date.now() - seconds * 1000).toISOString();
+    const facts = {
+      "aaitr-att": { tags: ["cd", "exit"], status: "online", public_ip: "192.0.2.14", agent_version: "0.3.10", geo: { country: "US", city: "Los Angeles", provider: "Aaitr" }, last_seen: ago(4) },
+      "aaitr-frontier-nat": { tags: ["cd", "exit", "nat"], status: "online", public_ip: "192.0.2.15", agent_version: "0.3.10", geo: { country: "US", city: "San Jose", provider: "Aaitr" }, last_seen: ago(6) },
+      node_4ol55vwphys3rgdt: { tags: ["cd", "exit"], status: "online", public_ip: "198.51.100.21", agent_version: "0.3.9", geo: { country: "GB", city: "London", provider: "Akkocloud" }, last_seen: ago(3) },
+      "dmit-eb-wee": { tags: ["cd", "edge", "relay"], status: "online", public_ip: "203.0.113.4", agent_version: "0.3.10", geo: { country: "US", city: "Los Angeles", provider: "DMIT" }, last_seen: ago(2) },
+      node_ob46mh4ltshdpkhc: { tags: ["cd", "exit"], status: "degraded", public_ip: "203.0.113.5", agent_version: "0.3.10", geo: { country: "US", city: "Los Angeles", provider: "DMIT" }, last_seen: ago(48) },
+      node_5cuasrdombvftahf: { tags: ["cd", "exit", "lab"], status: "online", public_ip: "198.51.100.40", agent_version: "0.3.10-alpha.2", geo: { country: "JP", city: "Tokyo", provider: "Gomami" }, last_seen: ago(5) },
+      "cd-hs-sh": { tags: ["cd", "edge"], status: "offline", public_ip: "203.0.113.60", agent_version: "0.3.8", geo: { country: "CN", city: "Shanghai", provider: "Volcengine" }, last_seen: ago(3 * 3600) },
+      "legend-sg": { tags: ["cd", "exit"], status: "online", public_ip: "192.0.2.80", agent_version: "0.3.10", geo: { country: "SG", city: "Singapore", provider: "LegendVPS" }, last_seen: ago(7) },
+      node_nwnkg35v7dg5uxgq: { tags: ["cd", "relay", "iplc"], status: "online", public_ip: "198.51.100.90", agent_version: "0.3.10", geo: { country: "HK", city: "Hong Kong", provider: "mkcloud" }, last_seen: ago(9) },
+      "dmit-1": { tags: ["metix", "relay", "edge"], status: "degraded", public_ip: "203.0.113.9", agent_version: "0.3.9", geo: { country: "US", city: "Los Angeles", provider: "DMIT" }, last_seen: ago(61) },
+    };
+    for (const node of nodes) node.facts = { id: node.id, name: node.name, ...facts[node.id] };
+
+    // The page's own fields first, then the shared node fields this page can answer.
+    const linesQuery = {
+      fields: [
+        { key: "lines", type: "number", hint: "Lines on the node", get: (node) => node.lines },
+        { key: "relays", type: "number", hint: "Relay lines on the node", get: (node) => node.relays },
+        { key: "exits", type: "number", hint: "Exit lines on the node", get: (node) => node.exits },
+        { key: "service", type: "enum", values: ["down", "running"], hint: "down when any line on the node is down", get: (node) => node.service },
+        ...query.nodeQueryFields((node) => node.facts, {
+          only: ["name", "id", "ip", "tag", "provider", "country", "region", "agent", "status", "online", "offline", "degraded", "reporting", "last_seen"],
+        }),
+      ],
+      text: (node) => query.nodeQueryText(node.facts),
+    };
+    const examples = [
+      { query: "service:down OR is:offline", note: "Nodes with a dead inbound or no reports" },
+      { query: "tag:relay sort:-relays", note: "Relay nodes, the most relays first" },
+      { query: "country:US -tag:cd", note: "US nodes outside the cd set" },
+    ];
+
     const App = {
       setup() {
         const lens = ref(params.get("lens") ?? "fleet");
-        const search = ref("");
+        // ?q= in the frame's own document; a plugin whose state the console keeps binds its page state instead.
+        const search = chassis.useDocumentQueryText("q");
+        const rows = ref(nodes);
+        const listQuery = chassis.useListQuery(rows, linesQuery, search);
+        const invalid = listQuery.invalid;
+        // The empty state quotes the query the rows answer, which is the last valid one while the text does not read.
+        const ranQuery = computed(() => listQuery.active.value.source.trim());
         const refreshing = ref(false);
         const notice = ref(params.get("notice") !== "0");
         const groups = chassis.useExpandSet(params.getAll("expand"));
@@ -88,11 +130,7 @@
         const openNode = computed(() => nodes.find((node) => node.id === openId.value));
         function showNode(node, event) { panelReturn.value = event?.currentTarget ?? null; openId.value = node.id; }
         chassis.useOverlayEscape();
-        const visible = computed(() => {
-          const term = search.value.trim().toLowerCase();
-          if (!term) return nodes;
-          return nodes.filter((node) => node.name.toLowerCase().includes(term) || node.id.includes(term));
-        });
+        const visible = computed(() => listQuery.rows.value);
         function summary(node) {
           const parts = [`${node.lines} ${node.lines === 1 ? "line" : "lines"}`];
           if (node.relays) parts.push(`${node.relays} relay`);
@@ -101,7 +139,7 @@
           return parts;
         }
         function refresh() { refreshing.value = true; setTimeout(() => (refreshing.value = false), 900); }
-        return { lens, search, refreshing, notice, groups, banks, modal, confirm, page, openId, panelSize, panelReturn, openNode, showNode, visible, summary, refresh, Radar, RefreshCw, Plus, Waypoints };
+        return { lens, search, listQuery, invalid, ranQuery, examples, rows, refreshing, notice, groups, banks, modal, confirm, page, openId, panelSize, panelReturn, openNode, showNode, visible, summary, refresh, Radar, RefreshCw, Plus, Waypoints };
       },
       template: `
 <PcWorkspace>
@@ -134,15 +172,14 @@
         <PcLensTab value="outbounds" label="Outbounds" :count="7" />
       </PcLensTabs>
     </template>
-    <template #search><PcSearchField v-model="search" label="Search lines" placeholder="Search node, line, endpoint, outbound or error" /></template>
-    <template v-if="search.trim()" #note>{{ visible.length }} of {{ 25 }} nodes match</template>
+    <template #search><PcQueryBar v-model="search" :query="listQuery" :count="{ shown: visible.length, total: rows.length }" label="Search, filter and sort nodes" placeholder="tag:relay service:down sort:-lines" storage-key="harness.lines" :examples="examples" /></template>
     <template #secondary><PcButton @click="confirm = true">Remove stale</PcButton></template>
     <template #primary><PcButton variant="primary" @click="modal = true"><template #icon><Plus :size="15" /></template>Roll out managed lines</PcButton></template>
   </PcToolbar>
 
-  <PcPanel v-if="lens === 'fleet'" id="pc-panel-fleet" role="tabpanel" aria-labelledby="pc-tab-fleet">
+  <PcPanel v-if="lens === 'fleet'" id="pc-panel-fleet" role="tabpanel" aria-labelledby="pc-tab-fleet" :data-stale="invalid ? 'true' : undefined" :inert="invalid">
     <PcPanelHeader title="Fleet" description="Every node that reports an inbound, with its lines folded underneath. A bank is a set of relay lines of one protocol that all dial out.">
-      <PcCount value="25 nodes · 138 lines" />
+      <PcCount :value="rows.length + ' nodes · 31 lines'" />
     </PcPanelHeader>
     <PcTable v-if="visible.length" :min-width="1080" label="Fleet">
       <template #head>
@@ -221,11 +258,11 @@
         </template>
       </tbody>
     </PcTable>
-    <PcEmptyState v-else kind="no-match" title="No line matches that search" :icon="Radar">
-      <p>Nothing in 138 lines across 25 nodes matches <span class="pc-mono">{{ search.trim() }}</span>. The search covers node, line name, protocol, host, status, outbound reference and error text.</p>
-      <template #actions><PcButton @click="search = ''">Clear the search</PcButton></template>
+    <PcEmptyState v-else kind="no-match" title="No node matches that query" :icon="Radar">
+      <p>None of the {{ rows.length }} nodes matches <span class="pc-mono">{{ ranQuery }}</span>. A bare word searches the node's name, id, addresses and tags; the help beside the field lists every field.</p>
+      <template #actions><PcButton @click="search = ''">Clear the query</PcButton></template>
     </PcEmptyState>
-    <PcPagination v-if="visible.length > 9" v-model:page="page" :pages="3" :from="1" :to="10" :total="25" noun="Nodes" note="searched across every one of them" label="Fleet pagination" />
+    <PcPagination v-if="visible.length > 9" v-model:page="page" :pages="1" :from="1" :to="visible.length" :total="visible.length" noun="Nodes" note="searched across every one of them" label="Fleet pagination" />
   </PcPanel>
 
   <PcPanel v-else-if="lens === 'topology'" id="pc-panel-topology" role="tabpanel" aria-labelledby="pc-tab-topology">

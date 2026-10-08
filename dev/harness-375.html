@@ -4,19 +4,35 @@
   <meta charset="utf-8" />
   <title>Plugin chassis harness at 375 and 720</title>
   <style>
-    body { margin: 0; padding: 24px; display: flex; gap: 24px; align-items: flex-start; background: #262a30; font-family: ui-sans-serif, system-ui, sans-serif; color: #ddd; }
+    body { margin: 0; padding: 24px; display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; background: #262a30; font-family: ui-sans-serif, system-ui, sans-serif; color: #ddd; }
     figure { margin: 0; }
-    figcaption { margin-bottom: 8px; font-size: 12px; }
+    figcaption { max-width: 375px; margin-bottom: 8px; font-size: 12px; }
     iframe { display: block; border: 1px solid #555; background: #fff; }
   </style>
 </head>
 <body>
   <figure>
-    <figcaption>375 x 812, dark, DMIT-eb-wee open</figcaption>
-    <iframe src="harness.html?theme=dark&expand=dmit-eb-wee&notice=0" width="375" height="812" title="375 frame"></iframe>
+    <figcaption>375 x 812, dark, DMIT-eb-wee open, empty query</figcaption>
+    <iframe src="harness.html?theme=dark&expand=dmit-eb-wee&notice=0" width="375" height="812" title="375 frame, empty query"></iframe>
   </figure>
   <figure>
-    <figcaption>720 x 812, light</figcaption>
+    <figcaption>375, filter and sort: tag:relay sort:-relays</figcaption>
+    <iframe src="harness.html?theme=dark&notice=0&q=tag%3Arelay%20sort%3A-relays" width="375" height="812" title="375 frame, filter and sort"></iframe>
+  </figure>
+  <figure>
+    <figcaption>375, OR and negation: (service:down OR is:degraded) -tag:metix</figcaption>
+    <iframe src="harness.html?theme=dark&notice=0&q=(service%3Adown%20OR%20is%3Adegraded)%20-tag%3Ametix" width="375" height="812" title="375 frame, OR and negation"></iframe>
+  </figure>
+  <figure>
+    <figcaption>375, invalid: tag:edge stauts:offline</figcaption>
+    <iframe src="harness.html?theme=dark&notice=0&q=tag%3Aedge%20stauts%3Aoffline" width="375" height="812" title="375 frame, invalid query"></iframe>
+  </figure>
+  <figure>
+    <figcaption>375, no matches: country:JP is:offline</figcaption>
+    <iframe src="harness.html?theme=dark&notice=0&q=country%3AJP%20is%3Aoffline" width="375" height="812" title="375 frame, no matches"></iframe>
+  </figure>
+  <figure>
+    <figcaption>720 x 812, light, empty query</figcaption>
     <iframe src="harness.html?theme=light&expand=dmit-eb-wee&notice=0" width="720" height="812" title="720 frame"></iframe>
   </figure>
 </body>
