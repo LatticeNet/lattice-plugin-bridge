@@ -313,9 +313,10 @@
 .pc-query-snippet mark { border-radius: 2px; padding: 0 1px; color: var(--foreground); background: color-mix(in oklab, var(--warning) 25%, transparent); text-decoration: underline wavy var(--warning); text-underline-offset: 2px; }
 .pc-query-stale { color: var(--muted-foreground); }
 /* The rows under a query that does not read answer an earlier one: a page
-   sets data-stale (and inert) on the panel while useListQuery says `invalid`,
-   as the console dims its list, so nobody acts on rows they cannot see the
-   query for. */
+   sets data-stale (and inert) on the panel while useListQuery says
+   `staleRows`, as the console dims its list, so nobody acts on rows they
+   cannot see the query for. Over the no-match state the panel stays live,
+   so its Clear the query works. */
 .pc-panel[data-stale="true"] { opacity: 0.55; transition: opacity var(--pc-dur-base) var(--pc-ease); }
 .pc-select { min-height: 34px; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 6px var(--space-2); color: var(--foreground); background: var(--card); font-size: var(--pc-text-sm); }
 

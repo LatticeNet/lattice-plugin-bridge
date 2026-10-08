@@ -119,6 +119,44 @@ describe("useListQuery", () => {
     scope.stop();
   });
 
+  it("says to dim only the rows a stale query left, never its no-match state (staleRows)", async () => {
+    vi.useFakeTimers();
+    const scope = effectScope();
+    const text = ref("tag:edge");
+    const query = scope.run(() => useListQuery(ref(NODES), schema, text))!;
+    vi.advanceTimersByTime(SETTLE_MS);
+    expect(query.staleRows.value).toBe(false);
+
+    text.value = "tag:edge stauts:offline";
+    await nextTick();
+    vi.advanceTimersByTime(ERROR_DELAY_MS);
+    expect(query.invalid.value).toBe(true);
+    expect(query.rows.value).toHaveLength(3);
+    expect(query.staleRows.value).toBe(true);
+
+    // The last valid query keeps nothing: the panel holds the no-match
+    // state, and its Clear the query must stay live.
+    text.value = "zzz-no-such-node";
+    await nextTick();
+    vi.advanceTimersByTime(SETTLE_MS);
+    expect(query.rows.value).toHaveLength(0);
+    text.value = "zzz-no-such-node stauts:offline";
+    await nextTick();
+    vi.advanceTimersByTime(ERROR_DELAY_MS);
+    expect(query.invalid.value).toBe(true);
+    expect(query.rows.value).toHaveLength(0);
+    expect(query.staleRows.value).toBe(false);
+    scope.stop();
+  });
+
+  it("dims nothing over a list with no rows at all", () => {
+    const scope = effectScope();
+    const query = scope.run(() => useListQuery(ref<PluginNodeFacts[]>([]), schema, ref("stauts:offline")))!;
+    expect(query.invalid.value).toBe(true);
+    expect(query.staleRows.value).toBe(false);
+    scope.stop();
+  });
+
   it("shows an error that arrives with the page at once, and runs every row", () => {
     const scope = effectScope();
     const query = scope.run(() => useListQuery(ref(NODES), schema, ref("stauts:offline")))!;
