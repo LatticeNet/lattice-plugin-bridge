@@ -5,7 +5,8 @@
  * Import the stylesheet once, `@latticenet/plugin-bridge/chassis.css`, then
  * build the page from these parts in the reading order the design fixes:
  * PcWorkspace > PcPageHeader (+ PcProofLine) > PcNotice* > PcStatStrip >
- * PcToolbar > PcPanel (PcPanelHeader, PcTable, PcPagination). The look lives
+ * PcToolbar (PcQueryBar in its search slot) > PcPanel (PcPanelHeader,
+ * PcTable, PcPagination). The look lives
  * in the one sheet; the behaviour (toggle, tablist, overlay stack, stacked
  * rows) lives here, so the four plugin pages cannot drift apart again.
  */
@@ -61,3 +62,9 @@ export {
 
 export { useDocumentQueryState, useMediaQuery } from "./queryState.js";
 export type { DocumentQueryState } from "./queryState.js";
+
+export { PcQueryBar } from "./queryBar.js";
+export type { QueryExample } from "./queryBar.js";
+
+export { useListQuery, useQueryText, useDocumentQueryText, SETTLE_MS, ERROR_DELAY_MS, URL_WRITE_MS } from "./listQuery.js";
+export type { ListQuery, ListQueryOptions, ListQueryState } from "./listQuery.js";

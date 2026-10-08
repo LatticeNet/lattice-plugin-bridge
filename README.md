@@ -152,9 +152,157 @@ What the parts do, in one line each:
 - `PcModal` (`open`, `title`, `description`, `size` small, default, large, `returnFocusTo`, emits `close`; `#footer`; on close, focus goes back to `returnFocusTo` or, left unset, to the element that had focus when the dialog opened), `PcSidePanel` (the same with `size` record or output; from 768px for a record (`SIDE_PANEL_BESIDE_QUERY`) and from 1280px for an output document (`SIDE_PANEL_OUTPUT_BESIDE_QUERY`) it sits beside the collection and is not modal, and it is never wider than the frame less 320px, whatever width a plugin gives it, so the rows it sits beside stay readable: no scrim, the wrapper lets pointer events through so the rows stay live and a row click swaps the record, `role="complementary"` labelled by its title, and Tab walks in and out; Escape and the close button still close it, and focus goes back to the opener when it was in the panel, but Escape typed in a text field on the page (the rows' search), pressed in an open menu (`role="menu"`) outside the panel, or already used by a page control (`preventDefault`) stays with the page. The frame is measured in the first render, so a panel restored from the address opens in its final form. Below its threshold it is a modal full-height sheet that takes every Escape), `PcConfirmDialog` (`open`, `title`, `message`, `confirmLabel`, `cancelLabel`, `destructive`, `busy`, emits `confirm` and `cancel`), `PcBatchBar` (`count`, emits `clear`).
 - Behaviour: `useExpandSet()` is the open set for one level of grouping (`isOpen`, `toggle`, `open`, `close`, `replace`, `clear`, and `override(keys)` for a search that opens every match without losing the operator's own set). `useOverlayEscape()` binds one document handler that closes the top of the overlay stack; `useOverlayRegistration`, `registerOverlay`, `closeTopOverlay`, `escapeBelongsToPage`, `overlayDepth` and `trapDialogTab` are the pieces under it. A screen with its own Escape arbiter passes the keydown to `closeTopOverlay(event)` so it keeps the same rule beside a non-modal panel. `useDocumentQueryState()` reads and writes `?expand=`, `?bank=`, `?lens=` without touching the handshake fragment. `useMediaQuery(query)` is the ref behind the stacked form and the side panel's two forms; it holds the frame's answer from the first render.
 
-`dev/harness.html` renders the Lines page on the chassis with realistic content. After
-`npm run build`, serve the package root and open `dev/harness.html?expand=dmit-1`; the
-`dev/frame.html?w=375&h=812` wrapper shows it inside a 375px frame.
+- Query: `PcQueryBar` is the search, filter and sort field, and `useListQuery`, `useQueryText` and `useDocumentQueryText` are the state behind it. See [List query](#list-query).
+
+`dev/harness.html` renders the Lines page on the chassis with realistic content, its
+toolbar carrying `PcQueryBar` over ten node rows. After `npm run build`, serve the package
+root and open `dev/harness.html?expand=dmit-1` (add `&q=tag%3Arelay%20sort%3A-relays` to
+start from a query); the `dev/frame.html?w=375&h=812` wrapper shows it inside a 375px
+frame, and `dev/harness-375.html` shows five query states side by side at 375.
+
+## List query
+
+`@latticenet/plugin-bridge/query` is the console's list query: the one search, filter and
+sort syntax the console's Nodes, SSH Guard and other node lists use (lattice-dashboard
+PR #107), for plugin pages. It imports nothing, Vue included, so it also runs in a worker or
+a plain test. The Vue field that types it is `PcQueryBar` in the chassis.
+
+The grammar is the console's. Space-separated terms must all match (`AND` says the same);
+`OR` or `|` matches either and binds tighter than the space, so `a b OR c` reads as a, and
+b or c. Parentheses group; `-term`, `-(group)` and `NOT term` negate. `field:value`
+contains, `field:=value` is exact, `*` is a wildcard, `field:a,b` takes any of the values,
+and double quotes keep spaces (`name:"edge sg"`). Comparisons `>`, `>=`, `<`, `<=` (also
+`:>` and the rest) take the field's unit: `users>10`, `quota>=90%`, `traffic>10MiB`,
+`last_seen>10m` (longer ago than ten minutes), `last_seen<2026-10-01`, `agent<0.3.10`. A
+date or time without a zone is the operator's local time. `is:flag` reads a yes-or-no
+field. `sort:field` or `sort:-field` orders the result; repeat it or list fields with
+commas to break ties, top level only. A bare word is a fuzzy search (exact, prefix,
+substring, subsequence) that floats the best matches up; under a negation it matches by
+substring only. The older `AND(a, b)`, `OR(...)` and `NOT(...)` forms still parse. Every
+term is checked against the page's fields before anything is filtered, so `stauts:offline`
+or `users>ten` is an error that names the field and the character range, with a
+suggestion when one is close.
+
+The API:
+
+- `compileQuery(text, schema)` returns `{ ok: true, query }` or `{ ok: false, error }`,
+  where `error` is `{ code, start, end, params }` with source offsets. `applyQuery(rows,
+  query, now?)` filters and orders; the rows keep the page's order unless the query sorts
+  or a bare word ranks them. `querySorter(sorts)` is the comparator alone.
+- `QuerySchema<T>` is `{ fields, text(row), bare?, aliases? }`. A `QueryField<T>` has a
+  `key`, `aliases`, a `type` (string, list, enum, bool, number, duration, time, version),
+  a `unit` for numbers (plain, percent, bytes, rate), the `values` of an enum (in the order
+  `sort:` uses) and their `valueAliases`, `get(row)`, an optional `match` for `:` and `=`,
+  `suggest(rows)` for the menu, a `hint` in words, `flag` to list a bool under `is:`, and
+  `sort` (`false`, or what to order by). A field listed first wins a name two fields claim.
+- `describeFields(schema, rows)` describes the fields for a menu, with values read from the
+  rows; `completeQuery(text, caret, fields, limit?)` returns what to offer at the caret and
+  the range an accepted item replaces. `parseQuery`, `withoutSorts` (the text without its
+  `sort:` terms, for a table header that takes the order back) and the value parsers
+  (`parseNumber`, `parseDuration`, `parseTime`, `compareVersions`) are exported as well.
+- `nodeQueryFields(nodeOf, options)` is the console's shared node field set over any row
+  that leads to a node: name, id, ip, tag (with role), group, provider, country, region,
+  os, arch, agent (version), status, the flags `is:online|offline|degraded|disabled|never|reporting`,
+  and last_seen, under the console's names and hints. `nodeOf(row)` returns the row's
+  `PluginNodeFacts`, the subset of the control plane's node JSON it reads, under the same
+  names (`id`, `name`, `status`, `online`, `disabled`, `last_seen`, `role`, `tags`,
+  `group_ids`, the four addresses, `agent_version`, `host_facts`, `geo`); only `id` is
+  required. `options.only` keeps the fields a page can answer, `options.groupName` names
+  group ids, and `options.identity` names a row whose node left the fleet. The console's
+  `cap`, `drift` and live metrics (cpu, mem, disk, load, rx, tx, uptime) are not here:
+  the plugin contract carries neither the agent's switches nor its metrics. A page that
+  has a figure of its own declares it as its own field. `nodeQuerySchema(options)` is the
+  schema for rows that are node facts; `nodeStatusOf(node)` rebuilds the status word when
+  a plugin has only `online`, `disabled` and `last_seen`.
+- `queryErrorMessage(error)` is the console's sentence for an error, `querySyntaxHelp(fields)`
+  is the help card's syntax rows with examples drawn from the page's own fields, and
+  `QUERY_COPY` and `FIELD_TYPE_LABELS` hold the rest of the field's words. The words are
+  English, as every plugin UI is today; none of them reads the host's `locale`. When one
+  does, an optional copy argument can be added without breaking a caller.
+
+In the chassis, `useListQuery(rows, schema, text, { now? })` is the query as reactive state:
+`rows`, `error`, `shownError` (the error once typing pauses on it for 600 ms, or at once on
+Enter or blur), `reveal()`, `stale` and `invalid` (the rows answer the last valid query
+that stood for 400 ms), `active`, `filtering`, `sorted` and `fields`. `PcQueryBar` takes
+`v-model` (the text), `query` (the `useListQuery` result), `label`, `storageKey` (names
+this page's recent queries in localStorage, under `lattice.query.recent.<storageKey>`;
+start it with the plugin id, `wireguard.fleet`, so two plugins sharing an origin never
+share recents; storage a sandbox refuses keeps them for the visit), and optional `count` (`{ shown,
+total }`, drawn inside the field's end), `placeholder` and `examples` (`{ query, note }[]`,
+shown first in the help card). It emits `update:modelValue` and exposes `focus()`. Keys:
+nothing in the menu is marked until ArrowDown; Enter keeps the query (and shows an error
+at once) or inserts the marked item; Tab moves on or inserts the marked item; Escape
+closes the menu, then leaves the field, and never reaches an overlay; ArrowDown on an
+empty field offers the recent queries.
+
+### Adopting it in a plugin page
+
+1. Pin `@latticenet/plugin-bridge` to this version and import `chassis.css` as before.
+2. Map each row to its node facts and declare the page's own fields first:
+
+   ```ts
+   import { nodeQueryFields, nodeQueryText, type QuerySchema } from "@latticenet/plugin-bridge/query";
+
+   const schema: QuerySchema<WireGuardNode> = {
+     fields: [
+       { key: "config", type: "enum", values: ["missing", "partial", "ready"], hint: "Configuration state", get: (n) => n.configuration },
+       { key: "port", type: "number", hint: "Listen port", get: (n) => n.listen_port },
+       ...nodeQueryFields<WireGuardNode>(
+         (n) => ({ id: n.node_id, name: n.name, online: n.online, disabled: n.disabled, last_seen: n.last_seen, public_ip: n.public_ip }),
+         { only: ["name", "id", "ip", "status", "online", "offline", "disabled", "never", "last_seen"] },
+       ),
+     ],
+     text: (n) => [n.name, n.node_id, n.public_ip, n.address],
+   };
+   ```
+
+   Build the schema once per page, outside any computed, so the field index is built once.
+3. Run it and bind the field. The text is page state: a page whose state the console
+   keeps (`HostInit.pageState`, as NetGuard, WireGuard and vpn-core do) puts it under `q`
+   in that state and binds the same ref, and its paced state sender writes the address. A
+   page without host page state uses `useDocumentQueryText("q")`, which reads `?q=` from
+   the frame's own document and writes it back once typing pauses.
+
+   ```vue
+   <script setup lang="ts">
+   import { PcQueryBar, useListQuery } from "@latticenet/plugin-bridge/chassis";
+   const query = useListQuery(nodes, schema, search); // search: the page-state ref for q
+   </script>
+   <template>
+     <PcToolbar>
+       <template #search>
+         <PcQueryBar v-model="search" :query="query" :count="{ shown: query.rows.value.length, total: nodes.length }"
+           label="Search, filter and sort nodes" storage-key="wireguard.fleet" :examples="examples" />
+       </template>
+     </PcToolbar>
+     <PcPanel :data-stale="query.invalid.value ? 'true' : undefined" :inert="query.invalid.value">
+       <!-- render query.rows.value -->
+     </PcPanel>
+   </template>
+   ```
+4. Render `query.rows.value`, not the page's own filter, and drop the old free-text
+   filter. While `query.invalid` holds, set `data-stale="true"` and `inert` on the panel
+   (the chassis dims it), as the console does, so nobody acts on rows for a query they
+   cannot see. With no rows, `PcEmptyState kind="no-match"` should offer to clear the query.
+5. Give two or three `examples` that answer the questions operators bring to that page.
+   Page state values are capped at 256 characters, so a longer query is kept on screen but
+   not in the address.
+
+### One behaviour in two places
+
+The console keeps its own copy of the core in `lattice-dashboard/src/lib/query`, because it
+builds with pnpm and does not depend on this package. The two are held together by shared
+test vectors: `src/query/vectors.json` (parse trees and error offsets, filter and sort
+results over a typed schema, completions and value parsing) and the runner
+`src/query/vectors.ts`, byte-identical in both repositories. Each repository's suite runs
+them against its own core, and this repository's CI job `console-parity` checks out
+lattice-dashboard `integration`, runs the vectors against the console's core and compares
+the two copies (weekly as well, so a console-only change is caught). The job tracks the
+console's `integration`, so a console change that alters query behaviour fails the next
+bridge PR until it is ported; that is the point. Until the console carries its copies
+(lattice-dashboard PR #108) the job compares behaviour only and says so in a notice. A
+grammar change is made in both cores and the vectors in the same sitting;
+`scripts/console-parity.mjs` runs the same check locally against a console checkout.
 
 ## Build and test
 
@@ -163,6 +311,7 @@ npm install
 npm test          # vitest run
 npm run typecheck # tsc --noEmit
 npm run build     # tsc -p tsconfig.build.json plus the chassis stylesheet, emits dist/
+node --experimental-strip-types scripts/console-parity.mjs ../lattice-dashboard
 ```
 
 ## Consumers

@@ -9,6 +9,7 @@
   "include": [
     "src/bridge.ts",
     "src/index.ts",
+    "src/query/index.ts",
     "src/chassis/index.ts"
   ]
 }
