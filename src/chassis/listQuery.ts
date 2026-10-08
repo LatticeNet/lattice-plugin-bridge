@@ -70,6 +70,14 @@ export interface ListQuery<T> extends ListQueryState {
    * rows for a query they can no longer see.
    */
   invalid: Readonly<Ref<boolean>>;
+  /**
+   * `invalid`, while the query keeps rows: what a page dims and makes inert.
+   * When the last valid query kept none, the panel holds the no-match state,
+   * whose Clear the query must stay live, so a page binds this rather than
+   * `invalid` to a panel that holds both. A page that narrows `rows` further
+   * before drawing them tests its own drawn rows instead.
+   */
+  staleRows: Readonly<Ref<boolean>>;
   /** The rows answer an earlier, valid query because the text is not one. */
   stale: Readonly<Ref<boolean>>;
   /** The query that ran. */
@@ -141,6 +149,7 @@ export function useListQuery<T>(
     shownError,
     reveal,
     invalid: computed(() => !!shownError.value),
+    staleRows: computed(() => !!shownError.value && rows.value.length > 0),
     stale: computed(() => !compiled.value.ok),
     active,
     filtering: computed(() => !active.value.empty),

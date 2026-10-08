@@ -223,7 +223,8 @@ The API:
 In the chassis, `useListQuery(rows, schema, text, { now? })` is the query as reactive state:
 `rows`, `error`, `shownError` (the error once typing pauses on it for 600 ms, or at once on
 Enter or blur), `reveal()`, `stale` and `invalid` (the rows answer the last valid query
-that stood for 400 ms), `active`, `filtering`, `sorted` and `fields`. `PcQueryBar` takes
+that stood for 400 ms), `staleRows` (`invalid` while the query keeps rows: what a page
+dims and makes inert), `active`, `filtering`, `sorted` and `fields`. `PcQueryBar` takes
 `v-model` (the text), `query` (the `useListQuery` result), `label`, `storageKey` (names
 this page's recent queries in localStorage, under `lattice.query.recent.<storageKey>`;
 start it with the plugin id, `wireguard.fleet`, so two plugins sharing an origin never
@@ -265,7 +266,7 @@ empty field offers the recent queries.
 
    ```vue
    <script setup lang="ts">
-   import { PcQueryBar, useListQuery } from "@latticenet/plugin-bridge/chassis";
+   import { PcButton, PcEmptyState, PcPanel, PcQueryBar, PcToolbar, useListQuery } from "@latticenet/plugin-bridge/chassis";
    const query = useListQuery(nodes, schema, search); // search: the page-state ref for q
    </script>
    <template>
@@ -275,15 +276,27 @@ empty field offers the recent queries.
            label="Search, filter and sort nodes" storage-key="wireguard.fleet" :examples="examples" />
        </template>
      </PcToolbar>
-     <PcPanel :data-stale="query.invalid.value ? 'true' : undefined" :inert="query.invalid.value">
-       <!-- render query.rows.value -->
+     <PcPanel :data-stale="query.staleRows.value ? 'true' : undefined" :inert="query.staleRows.value || undefined">
+       <NodeTable v-if="query.rows.value.length" :rows="query.rows.value" />
+       <PcEmptyState v-else kind="no-match" title="No node matches that query">
+         <template #actions><PcButton @click="search = ''">Clear the query</PcButton></template>
+       </PcEmptyState>
      </PcPanel>
    </template>
    ```
 4. Render `query.rows.value`, not the page's own filter, and drop the old free-text
-   filter. While `query.invalid` holds, set `data-stale="true"` and `inert` on the panel
-   (the chassis dims it), as the console does, so nobody acts on rows for a query they
-   cannot see. With no rows, `PcEmptyState kind="no-match"` should offer to clear the query.
+   filter. With no rows, `PcEmptyState kind="no-match"` offers to clear the query. Set
+   `data-stale="true"` and `inert` on the panel (the chassis dims it) only while the query
+   is invalid and the panel shows rows, which is what `query.staleRows` says, as the
+   console does: those rows answer a query nobody can see, so nobody acts on them. Keep
+   the no-match state outside anything inert. `invalid` alone also holds over the no-match
+   state, and a panel made inert by it leaves Clear the query dead exactly when the
+   operator reaches for it; binding the panel to `staleRows`, as above, keeps it live
+   while it holds that state. Empty states that do not answer the query (no nodes yet, a
+   failed read) have no rows, so they are never dimmed by it either. A page that narrows
+   `query.rows` further before drawing them tests what it draws,
+   `query.invalid.value && drawn.length > 0`. `staleRows` arrives in 0.2.0-alpha.4; on
+   0.2.0-alpha.3 write the same test over `query.rows.value.length`.
 5. Give two or three `examples` that answer the questions operators bring to that page.
    Page state values are capped at 256 characters, so a longer query is kept on screen but
    not in the address.
