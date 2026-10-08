@@ -285,16 +285,18 @@ empty field offers the recent queries.
    </template>
    ```
 4. Render `query.rows.value`, not the page's own filter, and drop the old free-text
-   filter. With no rows, `PcEmptyState kind="no-match"` offers to clear the query. The
-   panel is dimmed and inert only while it shows rows: while `query.staleRows` holds, set
-   `data-stale="true"` and `inert` on the panel (the chassis dims it), as the console does,
-   so nobody acts on rows for a query they cannot see. Bind `staleRows`, not `invalid`:
-   `invalid` also holds over the no-match state, and an inert panel leaves its Clear the
-   query dead exactly when the operator reaches for it. Empty states that do not answer
-   the query (no nodes yet, a failed read) have no rows, so they are never dimmed by it.
-   A page that narrows `query.rows` further before drawing them tests what it draws,
-   `query.invalid.value && drawn.length > 0`. `staleRows` is newer than 0.2.0-alpha.3; on
-   that version write the same test over `query.rows.value.length`.
+   filter. With no rows, `PcEmptyState kind="no-match"` offers to clear the query. Set
+   `data-stale="true"` and `inert` on the panel (the chassis dims it) only while the query
+   is invalid and the panel shows rows, which is what `query.staleRows` says, as the
+   console does: those rows answer a query nobody can see, so nobody acts on them. Keep
+   the no-match state outside anything inert. `invalid` alone also holds over the no-match
+   state, and a panel made inert by it leaves Clear the query dead exactly when the
+   operator reaches for it; binding the panel to `staleRows`, as above, keeps it live
+   while it holds that state. Empty states that do not answer the query (no nodes yet, a
+   failed read) have no rows, so they are never dimmed by it either. A page that narrows
+   `query.rows` further before drawing them tests what it draws,
+   `query.invalid.value && drawn.length > 0`. `staleRows` arrives in 0.2.0-alpha.4; on
+   0.2.0-alpha.3 write the same test over `query.rows.value.length`.
 5. Give two or three `examples` that answer the questions operators bring to that page.
    Page state values are capped at 256 characters, so a longer query is kept on screen but
    not in the address.
